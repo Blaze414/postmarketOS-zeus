@@ -8,6 +8,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
 
@@ -22,7 +23,14 @@ struct l2_38_0c_0a_dsc {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct drm_dsc_config dsc;
+	struct regulator_bulk_data *supplies;
 	struct gpio_desc *reset_gpio;
+};
+
+static const struct regulator_bulk_data l2_38_0c_0a_dsc_supplies[] = {
+	{ .supply = "vddd" },
+	{ .supply = "vci" },
+	{ .supply = "vddio" },
 };
 
 static inline
@@ -180,12 +188,19 @@ static int l2_38_0c_0a_dsc_prepare(struct drm_panel *panel)
 	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
+	ret = regulator_bulk_enable(ARRAY_SIZE(l2_38_0c_0a_dsc_supplies), ctx->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
 	l2_38_0c_0a_dsc_reset(ctx);
 
 	ret = l2_38_0c_0a_dsc_on(ctx);
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		regulator_bulk_disable(ARRAY_SIZE(l2_38_0c_0a_dsc_supplies), ctx->supplies);
 		return ret;
 	}
 
@@ -219,6 +234,7 @@ static int l2_38_0c_0a_dsc_unprepare(struct drm_panel *panel)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
 
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	regulator_bulk_disable(ARRAY_SIZE(l2_38_0c_0a_dsc_supplies), ctx->supplies);
 
 	return 0;
 }
@@ -311,11 +327,20 @@ static int l2_38_0c_0a_dsc_probe(struct mipi_dsi_device *dsi)
 	struct l2_38_0c_0a_dsc *ctx;
 	int ret;
 
-	ctx = devm_drm_panel_alloc(dev, struct l2_38_0c_0a_dsc, panel,
-				   &l2_38_0c_0a_dsc_panel_funcs,
-				   DRM_MODE_CONNECTOR_DSI);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	/*
+	 * devm_drm_panel_alloc() only exists from 6.15; this tree is 6.13.
+	 * Allocate and init separately, exactly as panel-l3-42-02-0a-dsc.c does.
+	 */
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ret = devm_regulator_bulk_get_const(dev,
+					    ARRAY_SIZE(l2_38_0c_0a_dsc_supplies),
+					    l2_38_0c_0a_dsc_supplies,
+					    &ctx->supplies);
+	if (ret < 0)
+		return ret;
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio))
@@ -330,6 +355,8 @@ static int l2_38_0c_0a_dsc_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
 
+	drm_panel_init(&ctx->panel, dev, &l2_38_0c_0a_dsc_panel_funcs,
+		       DRM_MODE_CONNECTOR_DSI);
 	ctx->panel.prepare_prev_first = true;
 
 	ctx->panel.backlight = l2_38_0c_0a_dsc_create_backlight(dsi);

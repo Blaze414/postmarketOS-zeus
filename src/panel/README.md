@@ -177,3 +177,57 @@ is the *first* thing to try, but changing it now means debugging two deltas at o
   `drm_dsc_config` has no slice-per-packet field; may need host-side handling.
 - LTPO: only the first of six timings was generated ("Multiple display timings are not
   supported yet, using first!"). 60 Hz fixed for now, which is what we want for bring-up.
+
+## Compiles (2026-09-12)
+
+`panel-l2-38-0c-0a-dsc.o`, 51744 bytes, no warnings. Two fixes were needed after the
+first generation, both found by actually compiling rather than by reading:
+
+### 1. The driver had no regulators
+
+The first generator run produced a driver that never requested the panel's power supplies,
+while our dts (inherited from cupid) declares `vddd`/`vci`/`vddio`. The panel would have
+stayed dark with nothing in the log to say why.
+
+Fixed by regenerating with the supplies named explicitly:
+
+```bash
+lmdpdg.py -r vddd -r vci -r vddio stock-dump/zeus-stock.dtb
+```
+
+The generator does not infer supplies from the downstream node - it has to be told.
+
+### 2. The generator targets a newer kernel than the fork
+
+It emits `devm_drm_panel_alloc()`, which landed in 6.15. `sm8450-mainline/linux` `next-new`
+is **6.13.0-rc3**, so the build failed with `implicit declaration of function`.
+
+Backported to the 6.13 pattern, which is exactly what cupid's driver does:
+
+```c
+ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+if (!ctx)
+	return -ENOMEM;
+...
+drm_panel_init(&ctx->panel, dev, &l2_38_0c_0a_dsc_panel_funcs,
+	       DRM_MODE_CONNECTOR_DSI);
+```
+
+This is a **regeneration hazard**: re-running `gen-panel.sh` will reintroduce the 6.15 API.
+Either keep the edit or rebase the kernel forward. The unused-`panel_funcs` warning that
+appeared alongside the error was the tell - the funcs struct was only referenced from the
+alloc call the old API does not have.
+
+### Registration
+
+`scripts/build.sh` registers all four touchpoints idempotently, asserting each landed:
+
+| File | Entry |
+|---|---|
+| `drivers/gpu/drm/panel/Kconfig` | `config DRM_PANEL_XIAOMI_38_0C_0A` |
+| `drivers/gpu/drm/panel/Makefile` | `obj-$(CONFIG_DRM_PANEL_XIAOMI_38_0C_0A) += panel-l2-38-0c-0a-dsc.o` |
+| `arch/arm64/configs/sm8450.config` | `CONFIG_DRM_PANEL_XIAOMI_38_0C_0A=m` |
+| `arch/arm64/boot/dts/qcom/Makefile` | `dtb-$(CONFIG_ARCH_QCOM) += sm8450-xiaomi-zeus.dtb` |
+
+Touch needs no new symbol: `CONFIG_TOUCHSCREEN_ST_FTS_V521_SPI=m` is already in the
+fork's sm8450 fragment, enabled for cupid, and our controller is the same driver.

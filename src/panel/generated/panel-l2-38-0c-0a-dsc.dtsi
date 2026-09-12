@@ -1,10 +1,11 @@
-#include <dt-bindings/phy/phy.h>
-
 &mdss_dsi0 {
 	panel@0 {
-		compatible = "mdss,r66451-plus-120hz-cphy";
+		compatible = "mdss,l2-38-0c-0a-dsc";
 		reg = <0>;
 
+		vddd-supply = <&...>;
+		vci-supply = <&...>;
+		vddio-supply = <&...>;
 		reset-gpios = <&tlmm XY GPIO_ACTIVE_LOW>;
 
 		port {
@@ -16,10 +17,6 @@
 };
 
 &mdss_dsi0_out {
-	data-lanes = <0 1 2>;
+	data-lanes = <0 1 2 3>;
 	remote-endpoint = <&panel_in>;
-};
-
-&mdss_dsi0_phy {
-    phy-type = <PHY_TYPE_CPHY>;
 };
