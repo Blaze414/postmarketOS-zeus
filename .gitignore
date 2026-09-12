@@ -1,0 +1,6 @@
+# Firmware dumps - hundreds of MB, and modem/xbl blobs are Xiaomi's, not ours to redistribute.
+stock-dump/*.img
+# Upstream clones
+upstream/
+# Build output
+out/
