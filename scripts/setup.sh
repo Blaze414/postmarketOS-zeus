@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Clone the upstream trees this port builds on. Run on the Linux build host.
+# Host-side clones. Run from the repo root on macOS.
+#
+# The Linux kernel tree is deliberately NOT cloned here - macOS APFS is
+# case-insensitive and the kernel contains colliding filenames
+# (net/netfilter/xt_TCPMSS.c vs xt_tcpmss.c, and 12 more). Git checks out one,
+# silently clobbers the other, and leaves a tree that looks fine but is not.
+# The kernel lives inside the build container instead: scripts/container-setup.sh
 set -euo pipefail
 
 ROOT="${1:-$PWD/upstream}"
@@ -8,34 +14,24 @@ cd "$ROOT"
 
 clone() {  # clone <url> <dir> <branch>
   if [ -d "$2/.git" ]; then
-    echo "==> $2 exists, fetching"; git -C "$2" fetch --depth=1 origin "$3"
+    echo "==> $2 exists, fetching"; git -C "$2" fetch --depth=1 origin "$3" || echo "!! fetch failed for $2"
   else
-    echo "==> cloning $2 ($3)"; git clone --depth=1 -b "$3" "$1" "$2"
+    echo "==> cloning $2 ($3)"
+    git clone --depth=1 -b "$3" "$1" "$2" || echo "!! CLONE FAILED: $2 - continuing"
   fi
 }
 
-# Mainline kernel fork carrying SM8450 device support (cupid lives here).
-clone https://github.com/sm8450-mainline/linux.git            linux      next-new
-
-# pmaports fork with the sm8450 device packages.
+# pmaports fork with the sm8450 device packages (device-xiaomi-cupid is our template).
 clone https://github.com/sm8450-mainline/pmaports.git         pmaports   master
 
-# Nonfree firmware blobs for zeus specifically.
-clone https://github.com/sm8450-mainline/firmware-xiaomi-zeus.git firmware-xiaomi-zeus main
-
-# Downstream devicetrees extracted from MIUI/HyperOS/LineageOS - cross-reference material.
-clone https://github.com/sm8450-mainline/fdt.git              fdt        master
+# Downstream devicetrees extracted from MIUI/HyperOS - cross-reference for our own dump.
+clone https://github.com/sm8450-mainline/fdt.git              fdt        main
 
 # Official LineageOS device tree - authoritative on partition layout and hardware parts.
 clone https://github.com/LineageOS/android_device_xiaomi_zeus.git los-zeus lineage-23.2
 
-cat <<'MSG'
+# NOTE: sm8450-mainline/firmware-xiaomi-zeus is an EMPTY repo (size 0, no branches).
+# Not cloned. We have our own blobs in stock-dump/ pulled off the device instead.
 
-==> done.
-
-Reference files you will live in:
-  upstream/linux/arch/arm64/boot/dts/qcom/sm8450-xiaomi-cupid.dts   <- your template
-  upstream/linux/arch/arm64/boot/dts/qcom/sm8450.dtsi               <- SoC base
-  upstream/pmaports/device/testing/device-xiaomi-cupid/             <- package template
-  upstream/los-zeus/                                                <- zeus hardware truth
-MSG
+echo
+echo "==> host-side done. Kernel tree: run ./scripts/dev.sh then ./scripts/container-setup.sh"

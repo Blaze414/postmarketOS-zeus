@@ -18,6 +18,7 @@ docker image inspect "$IMAGE" >/dev/null 2>&1 || {
 ARGS=(--rm -it --platform linux/arm64
       -v "$REPO:/work"
       -v zeus-pmb:/home/pmos/.local/var/pmbootstrap
+      -v zeus-linux:/src
       -w /work)
 
 if [ "${1:-}" = "--priv" ]; then
