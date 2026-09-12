@@ -216,3 +216,65 @@ Do not judge the port by whether the screen lights up. Stage 0 is a shell.
 
 GPU, WiFi, modem and DSP: the `firmware-xiaomi-zeus-*` packages do not exist upstream, so
 no firmware is installed. Camera and fingerprint: no mainline support at all.
+
+## Final image (2026-09-13) — Phosh, touch, device optimizations
+
+```bash
+./scripts/dev.sh --priv        # then inside:
+/work/scripts/pmb.sh build     # or `install` to skip the package rebuild
+```
+
+| artifact | |
+|---|---|
+| `out/pmb/boot.img` | 20,152,320 B, `ANDROID!`, our dtb embedded |
+| `out/pmb/xiaomi-zeus.img` | 2.37 GB Android sparse image |
+
+Verified in the built rootfs: `st_fts_l1.ftb` + `stm_fts_production_limits.csv` in
+`/lib/firmware`, `/etc/phosh/phoc.ini` with `scale = 3`, `qbootctl` and
+`postmarketos-ui-phosh` installed.
+
+### Do NOT use --split on this device
+
+`--split` emits bare ext2/ext4 filesystem images (`pmOS_boot`, `pmOS_root`) meant for
+devices that have two real partitions to hold them. zeus has no spare partition for
+`pmOS_boot`. The combined image is self-describing: it carries its own partition table with
+both filesystems inside, and the boot.img cmdline finds them by UUID:
+
+```
+pmos_boot_uuid=7424ab74-... pmos_root_uuid=935481f0-...
+```
+
+Those UUIDs match the two filesystems inside the combined image. Flashing split images here
+would leave the initramfs unable to find either.
+
+### Flashing
+
+```bash
+fastboot flash boot out/pmb/boot.img
+```
+
+```bash
+fastboot flash userdata out/pmb/xiaomi-zeus.img
+```
+
+```bash
+fastboot reboot
+```
+
+If it does not boot with AVB enabled, disable verification and retry:
+
+```bash
+fastboot --disable-verity --disable-verification flash vbmeta out/pmb/vbmeta.img
+```
+
+### Device-specific tuning applied
+
+| | why |
+|---|---|
+| `phoc.ini` `scale = 3` | 1440x3200 on 70x156mm is 523 DPI; unscaled Phosh is unusable. 480x1066 logical. Integer scale avoids fractional-scaling blur and the extra compositor pass |
+| `$pkgname-openrc` declared in `subpackages` | cupid defines `openrc()` but never lists it, so abuild silently skips it. It pulls `qbootctl-openrc`, which marks the A/B slot as successfully booted - without it the bootloader eventually rolls back to the other slot |
+| f2fs root | UFS 3.1 flash; log-structured with flash-aware GC. `CONFIG_F2FS_FS=y` already present |
+
+Skipped deliberately: **zram** (the device has 11.4 GB RAM, compression is pure overhead) and
+**120 Hz** (the panel does 24/30/40/60/90/120 LTPO but we are fixed at 60 - change the pixel
+clock only after the panel has been seen to work at all).

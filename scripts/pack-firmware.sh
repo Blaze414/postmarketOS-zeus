@@ -16,6 +16,8 @@ echo "==> assembling payload"
 rm -rf "$DUMP/payload"; mkdir -p "$PAY"
 cp "$DUMP"/mbn/*.mbn "$PAY"/
 cp "$DUMP"/raw/a730_sqe.fw "$DUMP"/raw/a730_zap.mbn "$DUMP"/raw/gmu_gen70000.bin "$PAY"/
+cp "$DUMP"/raw/st_fts_l1.ftb "$DUMP"/raw/stm_fts_production_limits.csv "$PAY"/ 2>/dev/null || \
+  cp "$DUMP"/touch/st_fts_l1.ftb "$DUMP"/touch/stm_fts_production_limits.csv "$PAY"/
 cp -r "$DUMP"/raw/modem_pr "$PAY"/
 
 echo "==> packing $OUT"

@@ -19,6 +19,11 @@ echo "==> staging GPU firmware"
 adb shell su -c "cp /vendor/firmware/a730_sqe.fw /vendor/firmware/a730_zap.mbn \
                     /vendor/firmware/gmu_gen70000.bin $STAGE/"
 
+echo "==> staging touchscreen firmware"
+# The ST FTS driver calls request_firmware() with the names from the dts
+# (fts,default-fw-name and fts,limit-name), so these must land in /lib/firmware.
+adb shell su -c "cp /vendor/firmware/st_fts_l1.ftb /vendor/firmware/stm_fts_production_limits.csv $STAGE/"
+
 echo "==> staging remoteproc + ipa firmware"
 # adsp/cdsp/slpi/modem/ipa ship split: a .mdt header plus .b00..bNN segments.
 for p in adsp cdsp slpi modem ipa_fws; do

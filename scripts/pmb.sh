@@ -59,7 +59,7 @@ if [ ! -f "$CFG" ]; then
 fi
 "${PMB[@]}" config device xiaomi-zeus
 "${PMB[@]}" config kernel postmarketos-qcom-sm8450-zeus
-"${PMB[@]}" config ui console       # console first: a failed desktop looks like a failed boot
+"${PMB[@]}" config ui "${ZEUS_UI:-phosh}"   # ZEUS_UI=console for headless bring-up debugging
 "${PMB[@]}" config systemd never
 "${PMB[@]}" config user pmos
 "${PMB[@]}" config hostname zeus
@@ -81,11 +81,25 @@ DUMMY_PASSWORD="${ZEUS_PASSWORD:-147147}"
 # --force because pmbootstrap caches built apks by pkgname-pkgver-rpkgrel: editing
 # an APKBUILD without bumping pkgrel silently reuses the stale package, and the
 # failure then looks identical to the one you just fixed.
+if [ "$ACTION" != "install" ]; then
 echo "==> building packages"
 "${PMB[@]}" -y build --force firmware-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
+fi
 
 echo "==> installing rootfs"
-"${PMB[@]}" -y install --no-fde --password "$DUMMY_PASSWORD"
+# NOT --split. zeus has no spare partition for a pmOS_boot filesystem, so the
+# combined image is what we want: it carries its own partition table with both
+# pmOS_boot and pmOS_root inside, and gets flashed whole to userdata. The Android
+# boot.img (kernel + initramfs) goes to the boot partition separately, and its
+# cmdline finds both filesystems by UUID:
+#   pmos_boot_uuid=... pmos_root_uuid=...
+# --split instead emits bare ext2/ext4 filesystem images intended for devices
+# that have two real partitions to put them in. Flashing those here would leave
+# the initramfs unable to find either UUID.
+#
+# f2fs rather than ext4: zeus has UFS 3.1 flash, and f2fs is log-structured with
+# flash-aware GC. CONFIG_F2FS_FS=y is already in the sm8450 config fragment.
+"${PMB[@]}" -y install --no-fde --filesystem f2fs --password "$DUMMY_PASSWORD"
 
 # pmbootstrap export writes symlinks into the container volume, which dangle on
 # the macOS side, and it refuses to overwrite an existing file. Copy the real

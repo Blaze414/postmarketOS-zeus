@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=1
+pkgrel=4
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -15,6 +15,7 @@ depends="
 	firmware-xiaomi-zeus-ipa
 	firmware-xiaomi-zeus-modem
 	firmware-xiaomi-zeus-slpi
+	firmware-xiaomi-zeus-touchscreen
 	linux-firmware-ath11k
 	linux-firmware-qca
 	linux-firmware-qcom
@@ -27,11 +28,21 @@ depends="
 	qbootctl
 	tqftpserv
 "
+# NB: cupid defines an openrc() function but never lists it in subpackages, so
+# abuild silently never builds it. On an A/B device that matters: the openrc
+# subpackage pulls in qbootctl-openrc, which marks the slot as successfully
+# booted. Without it the bootloader eventually gives up on the slot and rolls
+# back. Declared explicitly here.
+subpackages="
+	$pkgname-phosh
+	$pkgname-openrc
+	"
 makedepends="
 	devicepkg-dev
 "
 source="
 	deviceinfo
+	phoc.ini
 "
 
 build() {
@@ -42,6 +53,13 @@ package() {
 	devicepkg_package $startdir $pkgname
 }
 
+phosh() {
+	install_if="$pkgname postmarketos-ui-phosh"
+
+	install -D -m644 "$srcdir"/phoc.ini \
+		"$subpkgdir"/etc/phosh/phoc.ini
+}
+
 openrc() {
 	install_if="$pkgname=$pkgver-r$pkgrel openrc"
 	depends="qbootctl-openrc tqftpserv-openrc"
@@ -50,4 +68,5 @@ openrc() {
 }
 sha512sums="
 ded73e81d2be57b0e032416bca6b31c1d91a76d5d65d93ee8f565753b57308bacd0fe29da044e6c6e99d41c881fbb0b1b11f587f8c6f79b78c12ab4737c376c2  deviceinfo
+8a9a0872d23ae2ecb60f383e7ea960d1dff19cf3016019d29262df9bf1de745272f7f842f9cab45ec2cefeee57c5b9f9e50fe211655d63ac477b407f257a3193  phoc.ini
 "

@@ -11,7 +11,7 @@
 #   ./scripts/dump-firmware.sh && ./scripts/pack-firmware.sh
 pkgname=firmware-xiaomi-zeus
 pkgver=1
-pkgrel=0
+pkgrel=2
 pkgdesc="Firmware for Xiaomi 12 Pro"
 subpackages="
 	$pkgname-adsp
@@ -21,6 +21,7 @@ subpackages="
 	$pkgname-ipa
 	$pkgname-modem
 	$pkgname-slpi
+	$pkgname-touchscreen
 	"
 url="https://github.com/sm8450-mainline"
 arch="aarch64"
@@ -85,6 +86,21 @@ modem() {
 		-type f -exec chmod 0644 {} \;
 }
 
+# NB: this subpackage must NOT be called "-touch". abuild derives the shell
+# function name from the subpackage suffix, so "-touch" defines a function called
+# touch(), which shadows the touch(1) that abuild itself calls while packaging.
+# The symptom is an empty $subpkgdir and "install: can't create
+# /lib/firmware/...: Permission denied" attributed to an unrelated subpackage.
+touchscreen() {
+	pkgdesc="Xiaomi 12 Pro touchscreen firmware"
+
+	# The ST FTS driver calls request_firmware() with the bare names from the dts
+	# (fts,default-fw-name = st_fts_l1.ftb, fts,limit-name =
+	# stm_fts_production_limits.csv), so they go at the top of /lib/firmware.
+	install -Dm644 "$builddir"/st_fts_l1.ftb -t "$subpkgdir/lib/firmware"
+	install -Dm644 "$builddir"/stm_fts_production_limits.csv -t "$subpkgdir/lib/firmware"
+}
+
 slpi() {
 	pkgdesc="Xiaomi 12 Pro slpi firmware"
 
@@ -92,6 +108,6 @@ slpi() {
 		"$subpkgdir/lib/firmware/qcom/sm8450/zeus"
 }
 sha512sums="
-94c1c5ef9f062d5b8d7de9e26b2dbfcad39c13761fb061a160eaa8b3e10d8f3d190a38914ff8d74435e4725a38a941110f8077371971b46011322eb2a9048cd1  firmware-xiaomi-zeus-1.tar.gz
+3f39310ea7f2e345c4c084240bfdbcd70aeabc1b96650618aa13dbbc7c7617b36f30eacc365cd09643342c49cdaad4f4064c80a6d95b19b69d96fd65948061a3  firmware-xiaomi-zeus-1.tar.gz
 60c1d9f60ed66c55b64b035d2b8296c1d090048473d2f4a07136feca52d8b7ef829e02d7c37e58cb7196907c20160061def5fd2109de58b0d7981c9af345c5dc  30-initramfs-firmware.files
 "
