@@ -141,3 +141,78 @@ docker run ... -v /tmp/build-frozen.sh:/build.sh:ro zeus-build bash /build.sh ke
 fragment block on `DRM_PANEL_XIAOMI_38_0C_0A`, so once that symbol existed the later PM8008
 lines were never appended. The build then failed its own assertion, which is the system
 working - but the bug would have been invisible without the assertion.
+
+## Image built (2026-09-12)
+
+```bash
+./scripts/dev.sh --priv          # then, inside:
+/work/scripts/pmb.sh build
+```
+
+Artifacts, copied out of the container volume into `out/pmb/`:
+
+| file | size |
+|---|---|
+| `boot.img` | 20,074,496 B — valid `ANDROID!` boot image |
+| `xiaomi-zeus.img` | 818,260,588 B — full rootfs |
+| `sm8450-xiaomi-zeus.dtb` | 108,790 B |
+
+Verified, not assumed:
+- `boot.img` starts with the `ANDROID!` magic
+- our **exact** 108790-byte dtb is embedded in `boot.img` at offset 10317424, immediately
+  after the 10313328-byte kernel — consistent with `deviceinfo_append_dtb="true"`
+- the dtb is byte-identical to the one validated by hand, so the panel regulators, the
+  pm8008j node and the zeus touch parameters are all in the image
+
+### Four failures on the way here, in order
+
+1. **exit 137 at the kernel compile.** SIGKILL = OOM. The Docker VM was on defaults
+   (2 CPUs / 1.9 GB). Raised to 10 CPUs / 16 GB.
+2. **`error 127` at `GENHDR .../a2xx.xml.h`.** `/bin/sh: python3: not found` — the msm DRM
+   driver generates its register headers with `registers/gen_header.py`, and the Alpine
+   buildroot only installs declared `makedepends`. The stock sm8450 package does not declare
+   python3 because its 2023 pin predates that generator existing.
+3. **`mkinitfs: only one kernel release/flavor is supported, found: []`.** Our `package()`
+   was missing `usr/share/kernel/$_flavor/kernel.release`, which is how mkinitfs discovers
+   flavors. Dropped because the stock APKBUILD was read truncated and its `package()`
+   looked complete.
+4. **The same mkinitfs error again, after the fix.** abuild caches on
+   `pkgname-pkgver-pkgrel` and does not hash file contents, so editing an APKBUILD without
+   bumping `pkgrel` silently reuses the stale apk. The tell was the timing: it failed in
+   under a minute when a kernel build takes six. `pmb.sh` now passes `--force`.
+
+## Flashing
+
+**Not yet attempted.** The device must be in fastboot (power off, hold Vol-Down + Power).
+
+```bash
+fastboot flash boot out/pmb/boot.img
+```
+
+```bash
+fastboot flash userdata out/pmb/xiaomi-zeus.img
+```
+
+```bash
+fastboot reboot
+```
+
+### What success looks like
+
+**A black screen and a working SSH login.** USB gadget networking comes up before the
+display does:
+
+```bash
+ssh user@172.16.42.1
+```
+
+Password is whatever `ZEUS_PASSWORD` was at build time (default `147147`). **Change it
+immediately with `passwd`** - pmbootstrap's `--password` is handled in plain text and is
+written to the build log.
+
+Do not judge the port by whether the screen lights up. Stage 0 is a shell.
+
+### Known non-working on this image
+
+GPU, WiFi, modem and DSP: the `firmware-xiaomi-zeus-*` packages do not exist upstream, so
+no firmware is installed. Camera and fingerprint: no mainline support at all.

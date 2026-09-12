@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=0
+pkgrel=1
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -20,7 +20,11 @@ options="!strip !check !tracedeps
 	pmb:cross-native
 	pmb:kconfigcheck-nftables
 	"
-makedepends="bison findutils flex installkernel openssl-dev perl"
+# python3: drivers/gpu/drm/msm generates its register headers at build time with
+# registers/gen_header.py. Without it the build dies at
+# "GENHDR drivers/gpu/drm/msm/generated/a2xx.xml.h" with error 127. The stock
+# sm8450 kernel package predates that generator, which is why it does not need this.
+makedepends="bison findutils flex installkernel openssl-dev perl python3"
 
 _repo="linux"
 _config="config-$_flavor.$arch"
@@ -92,7 +96,16 @@ package() {
 		ARCH="$_carch" \
 		INSTALL_PATH="$pkgdir"/boot/ \
 		INSTALL_MOD_PATH="$pkgdir" \
+		INSTALL_MOD_STRIP=1 \
 		INSTALL_DTBS_PATH="$pkgdir"/boot/dtbs
+	rm -f "$pkgdir"/lib/modules/*/build "$pkgdir"/lib/modules/*/source
+
+	# mkinitfs discovers kernel flavors by scanning usr/share/kernel/*/kernel.release.
+	# Without this file it reports "only one kernel release/flavor is supported,
+	# found: []" and the install fails at the very last step, long after the kernel
+	# itself built fine.
+	install -D "$builddir"/include/config/kernel.release \
+		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
 }
 sha512sums="
 75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz

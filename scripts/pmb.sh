@@ -78,8 +78,11 @@ done
 # boot. Change it on the device immediately:  passwd
 DUMMY_PASSWORD="${ZEUS_PASSWORD:-147147}"
 
+# --force because pmbootstrap caches built apks by pkgname-pkgver-rpkgrel: editing
+# an APKBUILD without bumping pkgrel silently reuses the stale package, and the
+# failure then looks identical to the one you just fixed.
 echo "==> building packages"
-"${PMB[@]}" -y build linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
+"${PMB[@]}" -y build --force linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
 
 echo "==> installing rootfs"
 "${PMB[@]}" -y install --no-fde --password "$DUMMY_PASSWORD"
