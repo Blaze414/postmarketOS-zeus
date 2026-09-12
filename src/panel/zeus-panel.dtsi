@@ -1,0 +1,26 @@
+/*
+ * zeus panel node. GPIOs resolved from the downstream devicetree:
+ *   qcom,platform-reset-gpio = <&tlmm 0>    (0x00)
+ *   qcom,platform-te-gpio    = <&tlmm 86>   (0x56, dsi0; 0x57/87 is dsi1)
+ * Both happen to match cupid, which is a good sign the board layout is shared.
+ */
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "mdss,l2-38-0c-0a-dsc";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 0 GPIO_ACTIVE_LOW>;
+		te-gpios = <&tlmm 86 GPIO_ACTIVE_HIGH>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};

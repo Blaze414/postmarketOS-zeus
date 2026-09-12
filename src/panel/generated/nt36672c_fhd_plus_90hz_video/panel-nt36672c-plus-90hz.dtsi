@@ -1,0 +1,26 @@
+#include <dt-bindings/phy/phy.h>
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "mdss,nt36672c-plus-90hz";
+		reg = <0>;
+
+		backlight = <&backlight>;
+		reset-gpios = <&tlmm XY GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+    phy-type = <PHY_TYPE_CPHY>;
+};

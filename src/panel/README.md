@@ -133,3 +133,47 @@ The HyperOS copy has phandle-resolution artifacts — it renders
 `qcom,mdss-dsc-slice-height = <&apss_atb_cti>`, which is nonsense; the pretty-printer
 resolved integer values into unrelated node references. Our live dump has real numbers.
 Use it, and treat the HyperOS copy as a second opinion on *structure*, never on *values*.
+
+## Generated — status
+
+`panel-l2-38-0c-0a-dsc.c` (400 lines) was produced by `scripts/gen-panel.sh` from
+`stock-dump/zeus-stock.dtb` and promoted to `src/panel/`. Verification against the
+hand-derived spec above: the generator's `drm_display_mode` matched it **exactly**
+(1440+32/16/32, 3200+24/8/24, 70x156mm), and its DSC block derives
+`slice_count = 1440 / 720 = 2` on its own.
+
+Required a one-line patch to the generator — it rejected `bpp = 30` (10bpc) outright.
+See `patches/0001-panel-generator-support-30bpp-dsc.patch`. There is no 30bpp MIPI DSI
+pixel format; DSC panels carry a compressed stream that mainline drives as RGB888,
+which is what cupid's driver does too.
+
+### Resolved from downstream, already applied
+
+| | value | note |
+|---|---|---|
+| `reset-gpios` | `&tlmm 0 GPIO_ACTIVE_LOW` | same pin as cupid |
+| `te-gpios` | `&tlmm 86 GPIO_ACTIVE_HIGH` | same pin as cupid (`0x56`) |
+
+### Open question — `MIPI_DSI_MODE_VIDEO_BURST`
+
+The generator emits:
+
+```c
+dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST |
+		  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
+```
+
+zeus is a **command-mode** panel (`dsi_cmd_mode`, `te-using-te-pin`, `mdp-trigger = "none"`,
+`dma-trigger = "trigger_sw"`), so `MIPI_DSI_MODE_VIDEO_BURST` looks wrong on its face.
+
+**Left as-is deliberately.** cupid is also a command-mode panel, its driver carries the same
+flag, and cupid works. Either the qcom DSI host wants it or it is inert on this path.
+Do not "fix" this before first boot — if the panel stays dark, dropping `VIDEO_BURST`
+is the *first* thing to try, but changing it now means debugging two deltas at once.
+
+### Still outstanding
+
+- `slice_per_pkt = 2` — the generator left a TODO, as it did for cupid. Mainline's
+  `drm_dsc_config` has no slice-per-packet field; may need host-side handling.
+- LTPO: only the first of six timings was generated ("Multiple display timings are not
+  supported yet, using first!"). 60 Hz fixed for now, which is what we want for bring-up.

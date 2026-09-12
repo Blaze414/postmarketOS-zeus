@@ -1,0 +1,17 @@
+diff --git a/panel.py b/panel.py
+index ad4dd8b..aa7a230 100644
+--- a/panel.py
++++ b/panel.py
+@@ -281,6 +281,12 @@ def __init__(self, name: str, fdt: Fdt2, node: int) -> None:
+ 
+ 		if self.bpp == 24:
+ 			self.format = 'MIPI_DSI_FMT_RGB888'
++		elif self.bpp == 30:
++			# 10bpc. There is no 30bpp MIPI DSI pixel format: panels like this are
++			# always DSC-compressed, and the DSI format describes the compressed
++			# stream, which mainline drives as RGB888 (see the existing sm8450
++			# panel drivers, e.g. panel-l3-42-02-0a-dsc.c).
++			self.format = 'MIPI_DSI_FMT_RGB888'
+ 		else:
+ 			raise ValueError(f'Unsupported bpp: {self.bpp} (TODO)')
+ 
