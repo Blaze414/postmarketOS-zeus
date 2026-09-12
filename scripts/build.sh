@@ -62,12 +62,18 @@ grep -q 'panel-l2-38-0c-0a-dsc.o' "$PM" || {
 }
 
 FRAG=arch/arm64/configs/sm8450.config
-grep -q 'DRM_PANEL_XIAOMI_38_0C_0A' "$FRAG" || {
-  echo "==> registering config fragment"
-  printf '\n# Xiaomi 12 Pro (Zeus)\nCONFIG_DRM_PANEL_XIAOMI_38_0C_0A=m\n' >> "$FRAG"
-  # zeus feeds its touchscreen avdd from a PM8008 satellite PMIC; cupid does not.
-  printf 'CONFIG_MFD_QCOM_PM8008=m\nCONFIG_REGULATOR_QCOM_PM8008=m\n' >> "$FRAG"
+# Guard per symbol, not per block: keying the whole block on one symbol means a
+# later addition never lands on a tree that already has the first one.
+add_cfg() {  # add_cfg <CONFIG_FOO=m> [comment]
+  grep -q "^$1\$" "$FRAG" && return 0
+  echo "==> config fragment: $1"
+  [ -n "${2:-}" ] && printf '\n# %s\n' "$2" >> "$FRAG"
+  echo "$1" >> "$FRAG"
 }
+add_cfg CONFIG_DRM_PANEL_XIAOMI_38_0C_0A=m "Xiaomi 12 Pro (Zeus)"
+# zeus feeds its touchscreen avdd from a PM8008 satellite PMIC; cupid does not.
+add_cfg CONFIG_MFD_QCOM_PM8008=m
+add_cfg CONFIG_REGULATOR_QCOM_PM8008=m
 
 # ---- config: defconfig + the fork's sm8450 fragment ----
 if [ ! -f .config ] || [ "$FRAG" -nt .config ]; then

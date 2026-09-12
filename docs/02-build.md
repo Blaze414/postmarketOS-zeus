@@ -111,3 +111,33 @@ the hardware description is correct. That is what first boot is for.
   `build-dtb.sh` now asserts the registration landed.
 - Docker named volumes are created root-owned; the container runs as `pmos`.
   `container-setup.sh` chowns `/src` on first use.
+
+## Kernel builds (2026-09-12)
+
+`./scripts/build.sh kernel` produces, verified present:
+
+| artifact | size |
+|---|---|
+| `out/Image.gz` | 10.3 MB |
+| `out/sm8450-xiaomi-zeus.dtb` | 108790 bytes (contains our fixed regulators + `pmic@c`) |
+| `panel-l2-38-0c-0a-dsc.ko` | 73 KB |
+| `qcom-pm8008.ko`, `qcom-pm8008-regulator.ko` | zeus touch avdd path |
+| `fts_touch_spi.ko` | touchscreen, inherited from cupid's config |
+
+### Two traps worth remembering
+
+**Never edit a script while the container is running it.** `scripts/build.sh` is
+bind-mounted from the Mac, and bash reads a script incrementally by byte offset. Editing it
+mid-run shifted the file under the live interpreter, which resumed mid-token and died with
+`==> full kernel build: command not found` (exit 127) *after* a perfectly good build. Copy
+the script to a frozen path and run that:
+
+```bash
+cp scripts/build.sh /tmp/build-frozen.sh
+docker run ... -v /tmp/build-frozen.sh:/build.sh:ro zeus-build bash /build.sh kernel
+```
+
+**Guard config-fragment edits per symbol, not per block.** The first version keyed the whole
+fragment block on `DRM_PANEL_XIAOMI_38_0C_0A`, so once that symbol existed the later PM8008
+lines were never appended. The build then failed its own assertion, which is the system
+working - but the bug would have been invisible without the assertion.
