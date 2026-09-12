@@ -4,3 +4,5 @@ stock-dump/*.img
 upstream/
 # Build output
 out/
+firmware-dump/
+src/pmaports/firmware-xiaomi-zeus/*.tar.gz

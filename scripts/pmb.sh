@@ -39,7 +39,7 @@ git -C "$APORTS" rev-parse --verify -q postmarketOS/main >/dev/null || {
 
 # --- our packages, refreshed from /work every run ---
 echo "==> installing zeus packages into pmaports"
-for p in device-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus; do
+for p in device-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus firmware-xiaomi-zeus; do
   rm -rf "$APORTS/device/testing/$p"
   cp -r "/work/src/pmaports/$p" "$APORTS/device/testing/$p"
 done
@@ -66,8 +66,8 @@ fi
 "${PMB[@]}" config jobs "$(nproc)"
 
 echo "==> checksums"
-"${PMB[@]}" -y checksum linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
-for p in device-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus; do
+"${PMB[@]}" -y checksum firmware-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
+for p in device-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus firmware-xiaomi-zeus; do
   cp "$APORTS/device/testing/$p/APKBUILD" "/work/src/pmaports/$p/APKBUILD"
 done
 
@@ -82,12 +82,25 @@ DUMMY_PASSWORD="${ZEUS_PASSWORD:-147147}"
 # an APKBUILD without bumping pkgrel silently reuses the stale package, and the
 # failure then looks identical to the one you just fixed.
 echo "==> building packages"
-"${PMB[@]}" -y build --force linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
+"${PMB[@]}" -y build --force firmware-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus device-xiaomi-zeus
 
 echo "==> installing rootfs"
 "${PMB[@]}" -y install --no-fde --password "$DUMMY_PASSWORD"
 
+# pmbootstrap export writes symlinks into the container volume, which dangle on
+# the macOS side, and it refuses to overwrite an existing file. Copy the real
+# artifacts out instead.
 echo "==> exporting"
-mkdir -p /work/out/pmb
-"${PMB[@]}" -y export /work/out/pmb
-ls -la /work/out/pmb
+OUT=/work/out/pmb
+sudo rm -rf "$OUT"; mkdir -p "$OUT"
+ROOTFS=/src/pmb-work/chroot_rootfs_xiaomi-zeus
+sudo cp "$ROOTFS"/boot/boot.img "$OUT"/
+sudo cp "$ROOTFS"/boot/sm8450-xiaomi-zeus.dtb "$OUT"/
+sudo cp /src/pmb-work/chroot_native/home/pmos/rootfs/xiaomi-zeus.img "$OUT"/
+sudo chown -R "$(id -u):$(id -g)" "$OUT"
+
+echo "==> firmware present in the rootfs?"
+sudo ls "$ROOTFS"/lib/firmware/qcom/sm8450/zeus/ 2>/dev/null || echo "  !! MISSING"
+sudo ls "$ROOTFS"/lib/firmware/qcom/ 2>/dev/null | grep -E "a730|gmu" || echo "  !! GPU firmware MISSING"
+
+ls -la "$OUT"
