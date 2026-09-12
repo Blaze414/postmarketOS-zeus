@@ -189,3 +189,49 @@ No GPIO conflicts: pm8008 uses tlmm 7 and 11, the panel rails 25/74/75.
 - **Panel regulator enable ordering / post-on delays** — downstream specifies
   `supply-post-on-sleep = 1` per rail; the fixed-regulator model does not express that.
 - `pm8008i @ 0x8` is left undescribed; nothing consumes it yet.
+
+## GPU acceleration — stack verified end to end (2026-09-13)
+
+Hardware acceleration needs four layers to agree. All four were checked in the built
+artifacts, not assumed:
+
+| layer | evidence |
+|---|---|
+| kernel knows the GPU | `adreno_gpu.h`: `ADRENO_7XX_GEN1 /* a730 family */`, `adreno_is_a730()`; `a6xx_catalog.c` carries `a730_hwcg`, `a730_protect_regs` |
+| kernel config | `CONFIG_DRM_MSM=y`, `DRM_MSM_DPU=y`, `DRM_MSM_DSI=y`, and `CONFIG_QCOM_SCM=y` (required to load the zap shader) |
+| firmware | `/lib/firmware/qcom/{a730_sqe.fw,a730_zap.mbn,gmu_gen70000.bin}` — the catalog asks for `a730_sqe.fw` by exactly that name |
+| userspace | Mesa 26.2.2: `msm_dri.so` + `kgsl_dri.so` in `/usr/lib/dri`, `libdrm_freedreno.so.1`, packages `mesa-dri-gallium`, `mesa-egl`, `mesa-gles`, `mesa-gbm` |
+
+The cross-check that matters: our dts says
+
+```dts
+&gpu {
+	status = "okay";
+	zap-shader {
+		firmware-name = "qcom/a730_zap.mbn";
+	};
+};
+```
+
+and the firmware package installs to `/lib/firmware/qcom/a730_zap.mbn`. Path and consumer
+agree. `deviceinfo_gpu_accelerated="true"` is what made pmbootstrap pull Mesa in even for
+a console image.
+
+### Why the console image cannot show it working
+
+`ui=console` has no compositor, so nothing exercises the GPU. The stack is installed and
+consistent, but "GPU accelerated" is only observable once a UI runs. After a successful
+first boot, switch and rebuild:
+
+```bash
+pmbootstrap config ui phosh
+```
+
+Then the check on-device is:
+
+```bash
+eglinfo | grep -i renderer     # want freedreno, not llvmpipe
+```
+
+`llvmpipe` means software rendering: the kernel driver bound but Mesa fell back, usually a
+missing or rejected zap shader. `dmesg | grep -i adreno` names the reason.
