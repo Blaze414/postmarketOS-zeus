@@ -1,0 +1,102 @@
+# Kernel for the Xiaomi 12 Pro (zeus).
+#
+# Why this exists instead of using linux-postmarketos-qcom-sm8450:
+# that package pins commit 6a206d94 from 2023-09-07 (v6.5), which predates
+# cupid's panel driver entirely - sm8450-xiaomi-cupid.dts and
+# panel-l3-42-02-0a-dsc.c are not in that tree. Everything in this port was
+# derived from, and tested against, the fork's next-new branch at 6.13.0-rc3.
+# This package pins that exact commit so what shipped is what was built.
+
+_flavor="postmarketos-qcom-sm8450-zeus"
+pkgname=linux-$_flavor
+pkgver=6.13.0_rc3
+pkgrel=0
+pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
+arch="aarch64"
+_carch="arm64"
+url="https://github.com/sm8450-mainline/linux"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps
+	pmb:cross-native
+	pmb:kconfigcheck-nftables
+	"
+makedepends="bison findutils flex installkernel openssl-dev perl"
+
+_repo="linux"
+_config="config-$_flavor.$arch"
+# sm8450-mainline/linux next-new, 2025-01-11, v6.13.0-rc3
+_commit="bf1d29fced6e156dd6090a9b6600a8c44259c114"
+
+source="
+	$_repo-$_commit.tar.gz::https://github.com/sm8450-mainline/$_repo/archive/$_commit/$_repo-$_commit.tar.gz
+	$_config
+	sm8450-xiaomi-zeus.dts
+	panel-l2-38-0c-0a-dsc.c
+"
+builddir="$srcdir/$_repo-$_commit"
+
+prepare() {
+	default_prepare
+
+	# Drop in the zeus devicetree and panel driver.
+	cp "$srcdir"/sm8450-xiaomi-zeus.dts arch/arm64/boot/dts/qcom/
+	cp "$srcdir"/panel-l2-38-0c-0a-dsc.c drivers/gpu/drm/panel/
+
+	# Register the devicetree. NB: this Makefile separates with a TAB.
+	local mk=arch/arm64/boot/dts/qcom/Makefile
+	if ! grep -q 'sm8450-xiaomi-zeus.dtb' "$mk"; then
+		sed -i 's|^\(dtb-$(CONFIG_ARCH_QCOM)[[:space:]]*+= sm8450-xiaomi-cupid.dtb\)$|\1\ndtb-$(CONFIG_ARCH_QCOM) += sm8450-xiaomi-zeus.dtb|' "$mk"
+		grep -q 'sm8450-xiaomi-zeus.dtb' "$mk" || { error "dtb registration failed"; return 1; }
+	fi
+
+	# Register the panel driver.
+	local pk=drivers/gpu/drm/panel/Kconfig
+	if ! grep -q 'DRM_PANEL_XIAOMI_38_0C_0A' "$pk"; then
+		cat >> "$pk".zeus <<-'KCONF'
+		config DRM_PANEL_XIAOMI_38_0C_0A
+			tristate "Xiaomi 38_0C_0A panel driver"
+			depends on OF
+			depends on DRM_MIPI_DSI
+			depends on BACKLIGHT_CLASS_DEVICE
+			select VIDEOMODE_HELPERS
+			help
+			  Support for the Xiaomi WQHD (3200x1440) DSC command mode panel
+			  found on the Xiaomi 12 Pro.
+		KCONF
+		# insert before the final endmenu so the symbol lands inside the menu
+		head -n -1 "$pk" > "$pk".new
+		cat "$pk".zeus >> "$pk".new
+		tail -n 1 "$pk" >> "$pk".new
+		mv "$pk".new "$pk"
+		rm -f "$pk".zeus
+		grep -q 'DRM_PANEL_XIAOMI_38_0C_0A' "$pk" || { error "Kconfig registration failed"; return 1; }
+	fi
+
+	local pm=drivers/gpu/drm/panel/Makefile
+	if ! grep -q 'panel-l2-38-0c-0a-dsc.o' "$pm"; then
+		echo 'obj-$(CONFIG_DRM_PANEL_XIAOMI_38_0C_0A) += panel-l2-38-0c-0a-dsc.o' >> "$pm"
+	fi
+
+	cp "$srcdir/$_config" .config
+}
+
+build() {
+	unset LDFLAGS
+	make ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-$_flavor"
+}
+
+package() {
+	mkdir -p "$pkgdir"/boot
+	make zinstall modules_install dtbs_install \
+		ARCH="$_carch" \
+		INSTALL_PATH="$pkgdir"/boot/ \
+		INSTALL_MOD_PATH="$pkgdir" \
+		INSTALL_DTBS_PATH="$pkgdir"/boot/dtbs
+}
+sha512sums="
+75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz
+14f57af49e99b3af0b01f8ca0b157cdb2ec11572f005c64653f3156f7d8ada7816dd7b248ded75d9cbc0f5d03d04e1ecbf66f4b14d11e46fac133d31e12d6d0b  config-postmarketos-qcom-sm8450-zeus.aarch64
+c37d08a47f3e2eb22ae1d60d4beabf1a79c7e9ae0413ada119c7c2cfc11a56b0b133528bddadae6acad2209ffd1da7215e6ca4a5f6dca9ffa5da52a6531f86d4  sm8450-xiaomi-zeus.dts
+a77cfe513f6916bcee7e4c2173ee0e9b8da6aa9c8622a32b9ec8197ecde5e80a53d99334013bbbd02c559dcb485653b5034cf27468c44dc1a4de1890343a87bd  panel-l2-38-0c-0a-dsc.c
+"

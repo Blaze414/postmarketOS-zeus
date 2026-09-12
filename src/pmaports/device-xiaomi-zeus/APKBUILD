@@ -1,0 +1,51 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname=device-xiaomi-zeus
+pkgdesc="Xiaomi 12 Pro"
+pkgver=1
+pkgrel=0
+url="https://postmarketos.org"
+license="MIT"
+arch="aarch64"
+options="!check !archcheck"
+# NOTE: no firmware-xiaomi-zeus-* here. sm8450-mainline/firmware-xiaomi-zeus is
+# an empty repository, so those packages do not exist. The blobs dumped off the
+# device live in stock-dump/ and are not packaged yet. Consequence: GPU, WiFi,
+# modem and DSP will not come up on first boot. That is expected - the first
+# milestone is a shell over USB, which needs none of them.
+depends="
+	linux-firmware-ath11k
+	linux-firmware-qca
+	linux-firmware-qcom
+	linux-postmarketos-qcom-sm8450-zeus
+	make-dynpart-mappings
+	mkbootimg
+	msm-modem
+	msm-modem-uim-selection
+	postmarketos-base
+	qbootctl
+	tqftpserv
+"
+makedepends="
+	devicepkg-dev
+"
+source="
+	deviceinfo
+"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+openrc() {
+	install_if="$pkgname=$pkgver-r$pkgrel openrc"
+	depends="qbootctl-openrc tqftpserv-openrc"
+
+	mkdir -p "$subpkgdir"
+}
+sha512sums="
+ded73e81d2be57b0e032416bca6b31c1d91a76d5d65d93ee8f565753b57308bacd0fe29da044e6c6e99d41c881fbb0b1b11f587f8c6f79b78c12ab4737c376c2  deviceinfo
+"

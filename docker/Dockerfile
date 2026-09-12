@@ -18,6 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-venv pipx python3-libfdt \
       android-sdk-libsparse-utils \
       ca-certificates xz-utils file kmod sudo \
+      # pmbootstrap host requirements: loop/partition handling, ps, filesystems
+      multipath-tools procps util-linux e2fsprogs f2fs-tools btrfs-progs \
+      dosfstools parted openssl android-sdk-libsparse-utils rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # pmbootstrap refuses to run as root, so give it a real user.
