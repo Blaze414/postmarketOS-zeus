@@ -65,6 +65,8 @@ FRAG=arch/arm64/configs/sm8450.config
 grep -q 'DRM_PANEL_XIAOMI_38_0C_0A' "$FRAG" || {
   echo "==> registering config fragment"
   printf '\n# Xiaomi 12 Pro (Zeus)\nCONFIG_DRM_PANEL_XIAOMI_38_0C_0A=m\n' >> "$FRAG"
+  # zeus feeds its touchscreen avdd from a PM8008 satellite PMIC; cupid does not.
+  printf 'CONFIG_MFD_QCOM_PM8008=m\nCONFIG_REGULATOR_QCOM_PM8008=m\n' >> "$FRAG"
 }
 
 # ---- config: defconfig + the fork's sm8450 fragment ----
@@ -75,8 +77,9 @@ if [ ! -f .config ] || [ "$FRAG" -nt .config ]; then
   make -s ARCH=arm64 olddefconfig >/dev/null
 fi
 
-grep -q 'CONFIG_DRM_PANEL_XIAOMI_38_0C_0A=m' .config \
-  || { echo "!! panel symbol not enabled in .config"; exit 1; }
+for sym in CONFIG_DRM_PANEL_XIAOMI_38_0C_0A CONFIG_MFD_QCOM_PM8008 CONFIG_REGULATOR_QCOM_PM8008; do
+  grep -q "^${sym}=m" .config || { echo "!! ${sym} not enabled in .config"; exit 1; }
+done
 
 mkdir -p /work/out
 case "$TARGET" in

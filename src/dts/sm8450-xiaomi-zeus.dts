@@ -195,6 +195,45 @@
 		regulator-boot-on;
 	};
 
+	/*
+	 * zeus powers its l2 panel from GPIO-switched fixed regulators, NOT from
+	 * pm8350c LDOs the way cupid does. Read out of this device's own fdt:
+	 *   display_panel_vddd  1.5V, tlmm 25, active high
+	 *   display_panel_vci   3.0V, tlmm 75, active high
+	 *   display_panel_vddio 1.8V, tlmm 74, active high
+	 * Inheriting cupid's pm8350c_l10/l13/l12 here would leave the panel dark
+	 * while enabling three unrelated rails.
+	 */
+	display_panel_vddd: regulator-panel-vddd {
+		compatible = "regulator-fixed";
+		regulator-name = "display_panel_vddd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	display_panel_vci: regulator-panel-vci {
+		compatible = "regulator-fixed";
+		regulator-name = "display_panel_vci";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&tlmm 75 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	display_panel_vddio: regulator-panel-vddio {
+		compatible = "regulator-fixed";
+		regulator-name = "display_panel_vddio";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&tlmm 74 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
 	wcn6855-pmu {
 		compatible = "qcom,wcn6855-pmu";
 
@@ -663,8 +702,42 @@
 	};
 
 	/* nq @ 64 */
-	/* pm8008j @ c */
-	/* pm8008j @ d */
+
+	/*
+	 * zeus populates the PM8008 satellites cupid leaves commented out:
+	 * pm8008i @ 0x8 (irq/reset tlmm 7) and pm8008j @ 0xc (irq/reset tlmm 11).
+	 * Only pm8008j is described, because its ldo3 is the touchscreen avdd -
+	 * cupid takes that from pm8350c_l7, which is wrong for this board.
+	 *
+	 * Downstream splits each chip over two i2c addresses (chip @ 0xc,
+	 * regulators @ 0xd); the mainline binding uses one node at the chip
+	 * address with the regulators as children.
+	 *
+	 * UNVERIFIED: ldo3's parent is set to vreg_bob, matching how other
+	 * mainline boards feed a PM8008. The downstream tree does not spell the
+	 * routing out. Only ldo3 is declared; nothing here consumes the others.
+	 */
+	pm8008j: pmic@c {
+		compatible = "qcom,pm8008";
+		reg = <0xc>;
+
+		interrupts-extended = <&tlmm 11 IRQ_TYPE_EDGE_RISING>;
+
+		vdd-l3-l4-supply = <&vreg_bob>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		regulators {
+			vreg_l3j: ldo3 {
+				regulator-name = "vreg_l3j";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3304000>;
+			};
+		};
+	};
+
+	/* pm8008i @ 0x8 - not wired up, nothing consumes it yet */
 };
 
 &i2c9 {
@@ -686,7 +759,7 @@
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&mi_ts_active>;
 		pinctrl-1 = <&mi_ts_suspend>;
-		avdd-supply = <&pm8350c_l7>;
+		avdd-supply = <&vreg_l3j>;
 		vdd-supply = <&pm8350c_l2>;
 		fts,pwr-reg-name = "avdd";
 		fts,bus-reg-name = "vdd";
@@ -788,9 +861,9 @@
 		pinctrl-1 = <&sde_dsi_suspend &sde_te_active_sleep>;
 		pinctrl-names = "default", "sleep";
 
-		vddd-supply = <&pm8350c_l10>;
-		vci-supply = <&pm8350c_l13>;
-		vddio-supply = <&pm8350c_l12>;
+		vddd-supply = <&display_panel_vddd>;
+		vci-supply = <&display_panel_vci>;
+		vddio-supply = <&display_panel_vddio>;
 
 		port {
 			panel_in: endpoint {

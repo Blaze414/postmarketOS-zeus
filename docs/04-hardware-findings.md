@@ -124,3 +124,68 @@ config from the downstream node's DSC properties.
 `featenabler`, `devcfg`. These feed `rmtfs`/`pd-mapper` at Stage 7.
 
 Gitignored — Xiaomi's proprietary blobs, not ours to redistribute.
+
+## Audit: what in the dts is actually zeus (2026-09-12)
+
+The dts was derived from cupid, so the risk is inherited-but-wrong nodes. Diffing our dts
+against cupid's shows only the nine intended edits — which is exactly the problem: every
+*other* node is cupid's description, silently assumed to apply.
+
+Method: for each board-level node, resolve the downstream phandles in this device's own fdt
+and compare against cupid's HyperOS fdt (`upstream/fdt/cupid.dts`) field by field.
+
+### Power topology is different — two real bugs found and fixed
+
+**Panel rails.** cupid drives its panel from pm8350c LDOs. zeus drives the l2 panel from
+**GPIO-switched fixed regulators**:
+
+| rail | cupid | zeus | voltage |
+|---|---|---|---|
+| `vddd` | `pm8350c_l10` | fixed, `tlmm 25` | 1.5 V |
+| `vci` | `pm8350c_l13` | fixed, `tlmm 75` | 3.0 V |
+| `vddio` | `pm8350c_l12` | fixed, `tlmm 74` | 1.8 V |
+
+Inherited unchanged, this leaves the panel unpowered while enabling three unrelated rails —
+a dark screen that looks exactly like a bad panel driver.
+
+Note the *secondary* display path in zeus's downstream tree (the l3 panel variant, the one
+cupid uses) does route to `pm8350c_l13`/`l12`. So cupid's values are not wrong in general;
+they are wrong for *our* panel. Same board, two supply topologies.
+
+**Touchscreen avdd.** Same comparison, unambiguous:
+
+```
+cupid  avdd-supply = <&L7C>    -> pm8350c_l7
+zeus   avdd-supply = <0x5a8>   -> pm8008j_l3, 3.3V
+```
+
+zeus carries two **PM8008 satellite PMICs** on i2c5 — `pm8008i @ 0x8` (irq/reset tlmm 7)
+and `pm8008j @ 0xc` (irq/reset tlmm 11). cupid's mainline dts has them commented out as
+`/* pm8008j @ c */` placeholders, because nothing on cupid needs them. On zeus the
+touchscreen does.
+
+Mainline has the drivers: `drivers/mfd/qcom-pm8008.c` and
+`drivers/regulator/qcom-pm8008-regulator.c`, symbols `MFD_QCOM_PM8008` and
+`REGULATOR_QCOM_PM8008`, both now in the config fragment.
+
+No GPIO conflicts: pm8008 uses tlmm 7 and 11, the panel rails 25/74/75.
+
+### Verified the same, left alone
+
+| | result |
+|---|---|
+| touch controller, bus, GPIOs | ST FTS on spi4, irq tlmm 21, reset tlmm 20 — identical |
+| touch `vdd` | `pm8350c_l2` on both |
+| panel reset / TE GPIOs | tlmm 0 / tlmm 86 — identical |
+| audio | `cs35l41` amps + `aw8697` haptic on both |
+| SoC, PMICs, UFS, USB, WiFi/BT | shared silicon, no board delta expected |
+
+### Still unverified
+
+- **`vdd-l3-l4-supply` for pm8008j** — set to `vreg_bob`, matching how other mainline boards
+  feed a PM8008. The downstream tree does not spell the routing out.
+- **Battery and charging parameters** — inherited from cupid, not checked. zeus is a
+  different cell and a 120W charger.
+- **Panel regulator enable ordering / post-on delays** — downstream specifies
+  `supply-post-on-sleep = 1` per rail; the fixed-regulator model does not express that.
+- `pm8008i @ 0x8` is left undescribed; nothing consumes it yet.
