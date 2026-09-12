@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git make gcc bc bison flex libssl-dev libelf-dev \
       gcc-aarch64-linux-gnu \
       device-tree-compiler \
-      python3 python3-venv pipx \
+      python3 python3-venv pipx python3-libfdt \
       android-sdk-libsparse-utils \
       ca-certificates xz-utils file kmod sudo \
     && rm -rf /var/lib/apt/lists/*
@@ -25,7 +25,10 @@ RUN useradd -m -s /bin/bash pmos && echo 'pmos ALL=(ALL) NOPASSWD:ALL' > /etc/su
 USER pmos
 WORKDIR /work
 
-RUN pipx install pmbootstrap
+# pmbootstrap is NOT installable from PyPI - every release there is yanked
+# (checked to 2.1.0). GitLab is the only source. Pin a release branch rather
+# than master so a container rebuild does not silently change the tool.
+RUN pipx install "git+https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git@3.10.x" 
 ENV PATH="/home/pmos/.local/bin:${PATH}"
 ENV ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 

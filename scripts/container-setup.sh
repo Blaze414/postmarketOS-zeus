@@ -8,6 +8,9 @@ if [ ! -d /src ]; then
   exit 1
 fi
 
+# Docker creates named volumes root-owned; we run as pmos.
+[ -w /src ] || { echo "==> taking ownership of /src"; sudo chown "$(id -u):$(id -g)" /src; }
+
 if [ ! -d /src/linux/.git ]; then
   echo "==> cloning sm8450-mainline/linux (next-new) into the volume"
   git clone --depth=1 -b next-new https://github.com/sm8450-mainline/linux.git /src/linux

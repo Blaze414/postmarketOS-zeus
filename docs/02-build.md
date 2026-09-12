@@ -67,3 +67,47 @@ pmbootstrap flasher flash_kernel && cat /dev/ttyACM0
 
 `PMOS_NO_OUTPUT_REDIRECT` is already in the cmdline (inherited from cupid) — it keeps
 early console output going to the framebuffer instead of being swallowed.
+
+---
+
+## Actual working flow (verified 2026-09-12)
+
+On macOS, once:
+
+```bash
+./scripts/setup.sh                 # host-side reference clones
+./scripts/dev.sh                   # builds + enters the container
+```
+
+Inside the container, once:
+
+```bash
+./scripts/container-setup.sh       # clones the kernel into the /src volume
+```
+
+Then, per change:
+
+```bash
+./scripts/build-dtb.sh             # links our sources in, registers the dtb, builds it
+```
+
+Output lands in `out/sm8450-xiaomi-zeus.dtb` on the Mac.
+
+### Status
+
+`sm8450-xiaomi-zeus.dtb` builds clean — 108026 bytes. Verified by decompiling the blob:
+model `Xiaomi 12 Pro`, compatible `xiaomi,zeus`, panel `mdss,l2-38-0c-0a-dsc`,
+`fts,x-max = 0x3840` / `y-max = 0x7d00` (matching the original device dump byte for byte),
+remoteproc firmware repointed to `qcom/sm8450/zeus/`.
+
+**This is a syntax and binding check only.** A dtb that compiles says nothing about whether
+the hardware description is correct. That is what first boot is for.
+
+### Gotchas hit while getting here
+
+- The qcom dts Makefile separates with a **tab**. A `sed` written against a space silently
+  does nothing, and `make qcom/<name>.dtb` still works because an explicit target bypasses
+  the list - so the registration looks fine until `make dtbs` quietly skips the device.
+  `build-dtb.sh` now asserts the registration landed.
+- Docker named volumes are created root-owned; the container runs as `pmos`.
+  `container-setup.sh` chowns `/src` on first use.
