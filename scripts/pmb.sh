@@ -37,6 +37,16 @@ git -C "$APORTS" rev-parse --verify -q postmarketOS/main >/dev/null || {
   git -C "$APORTS" fetch --depth=1 postmarketOS main
 }
 
+# --- single source of truth ---
+# The kernel package carries copies of the dts and panel driver as abuild sources.
+# Those copies are NOT the files we edit; src/dts and src/panel are. Syncing here
+# means an edit cannot silently fail to reach the build - which it did once,
+# producing a kernel whose dtb was missing the CPU thermal cooling maps while
+# every other check passed.
+echo "==> syncing canonical sources into the kernel package"
+cp /work/src/dts/sm8450-xiaomi-zeus.dts       /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
+cp /work/src/panel/panel-l2-38-0c-0a-dsc.c    /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
+
 # --- our packages, refreshed from /work every run ---
 echo "==> installing zeus packages into pmaports"
 for p in device-xiaomi-zeus linux-postmarketos-qcom-sm8450-zeus firmware-xiaomi-zeus; do

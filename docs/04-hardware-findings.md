@@ -235,3 +235,51 @@ eglinfo | grep -i renderer     # want freedreno, not llvmpipe
 
 `llvmpipe` means software rendering: the kernel driver bound but Mesa fell back, usually a
 missing or rejected zap shader. `dmesg | grep -i adreno` names the reason.
+
+## Power management audit (2026-09-13)
+
+### Defect found and fixed: CPU thermal throttling was not wired
+
+`sm8450.dtsi` describes 17 CPU thermal zones and gives every CPU `#cooling-cells`, but
+attaches `cooling-maps` to **only the two GPU zones**. The CPU zones' passive trips sit at
+115 C and 125 C, which are monitoring thresholds rather than throttle points.
+
+Consequence on an 8 Gen 1: under sustained load the SoC climbs past every usable throttle
+point to a critical trip and emergency-shuts-down instead of stepping frequency down.
+
+Fixed in our dts by binding each CPU zone to its cluster's cpufreq cooling device at an
+85 C passive trip:
+
+| cluster | cores | zones |
+|---|---|---|
+| A510 little | cpu0-3 | `cpu0-thermal` .. `cpu3-thermal` |
+| A710 big | cpu4-6 | `cpu{4,5,6}-{top,bottom}-thermal` |
+| X2 prime | cpu7 | `cpu7-{top,middle,bottom}-thermal` |
+
+Cooling maps in the built dtb: 2 -> 15. 85 C is conservative for an untested port; raise it
+once real thermal behaviour is known.
+
+`#cooling-cells` on the CPUs is what makes this a defect rather than a design choice - it
+declares the CPUs usable as cooling devices, and nothing consumed that.
+
+### Verified sound, unchanged
+
+| | |
+|---|---|
+| cpufreq | `ARM_QCOM_CPUFREQ_HW=y`, default governor schedutil |
+| cpuidle | `ARM_PSCI_CPUIDLE=y` plus domain support |
+| suspend | `SUSPEND`, `PM_AUTOSLEEP`, `PM_WAKELOCKS`; power key and volume-up are `wakeup-source` |
+| battery / charging | `pmic-glink` node present, `QCOM_PMIC_GLINK=y`, `BATTERY_QCOM_BATTMGR=m`, `UCSI_PMIC_GLINK=y`. Battery data comes from the ADSP battery manager, which needs adsp.mbn - packaged |
+| USB-C orientation | `orientation-gpios = <&tlmm 91>`, verified against zeus's own pinctrl (gpio91 has `function = "usb_phy"`) |
+| thermal sensing | `QCOM_TSENS=y`, step-wise and power-allocator governors |
+
+Expect slow charging regardless: the 120W charge-pump ICs are vendor-specific and
+unsupported, so roughly 10-18W USB-PD.
+
+### Build hazard this exposed
+
+The kernel package carries its own copies of `sm8450-xiaomi-zeus.dts` and
+`panel-l2-38-0c-0a-dsc.c` as abuild sources. Those are not the files we edit. The thermal
+change was made in `src/dts/` and the build silently used the stale package copy: the build
+succeeded, the image was produced, and the only symptom was a dtb that was the old size.
+`scripts/pmb.sh` now syncs `src/dts` and `src/panel` into the package before every build.
