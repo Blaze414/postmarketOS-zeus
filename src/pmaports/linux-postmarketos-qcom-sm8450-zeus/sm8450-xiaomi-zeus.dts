@@ -817,7 +817,14 @@
 		fts,x-max = <14400>;
 		fts,y-max = <32000>;
 		fts,support-super-resolution = <1>;
-		spi-max-frequency = <12000000>;
+		/*
+		 * 1 MHz, not the 12 MHz downstream uses. Everything else about this
+		 * node now matches downstream byte for byte and the controller still
+		 * answers chip_id 0x0, so the remaining suspect is the transaction
+		 * itself against mainline's GENI SPI controller. Dropping the clock is
+		 * the standard first test for that. Raise it again once touch works.
+		 */
+		spi-max-frequency = <1000000>;
 		fts,default-fw-name = "st_fts_l1.ftb";
 		fts,config-array-size = <1>;
 

@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=9
+pkgrel=11
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -110,8 +110,8 @@ package() {
 }
 sha512sums="
 75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz
-14f57af49e99b3af0b01f8ca0b157cdb2ec11572f005c64653f3156f7d8ada7816dd7b248ded75d9cbc0f5d03d04e1ecbf66f4b14d11e46fac133d31e12d6d0b  config-postmarketos-qcom-sm8450-zeus.aarch64
-c35ed5b889d10c5e6388ef140ce0fe431f821981f2404434e91fa8a4230d76a2f9c0fefdea56d492ac5d29cb9411c3c539c20cf04fe4fa05f7e8bf1daac377c5  sm8450-xiaomi-zeus.dts
+98a8bf365538a8a78cf9dbdb1a7bb502eabd4ff408deade9a10d606ddf7f34d163c73d2188d7a1f69a42a0efcbb6509dd222d8d03a17737acc6c2b287c3ee7a3  config-postmarketos-qcom-sm8450-zeus.aarch64
+99080e01431b1a118cf6e79441ee9c7ac030b69d51e855545e9965968508eeebf4c4ef3d7d9849363703bf37fbd41d55a6fa5d53f737495252bc9ef6bbdb9d0c  sm8450-xiaomi-zeus.dts
 db5ff4140c9f3a7b8008ec87dbf4bf9bd16f779580c0cb45841f89b6030ca5690217a667fe280f1030d46027cf9024041a0d6db90ac6c895128679785cf0376a  panel-l2-38-0c-0a-dsc.c
 bfde6fad3117dec055efe88a6a60c2393b3f5297e5ffacc743ae519e0100ed296d9546b8e6b86d9a75bbeb53676946a05e9f6cec2e95f3f8e0a7729c325b9664  0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 "

@@ -37,6 +37,11 @@ git -C "$APORTS" rev-parse --verify -q postmarketOS/main >/dev/null || {
   git -C "$APORTS" fetch --depth=1 postmarketOS main
 }
 
+# NOTE: add_cfg in scripts/build.sh edits the kernel tree's sm8450.config, which
+# only affects the direct build. The PACKAGED kernel uses its own
+# config-postmarketos-qcom-sm8450-zeus.aarch64, so config changes that must ship
+# have to be made in that file.
+
 # --- single source of truth ---
 # The kernel package carries copies of the dts and panel driver as abuild sources.
 # Those copies are NOT the files we edit; src/dts and src/panel are. Syncing here
