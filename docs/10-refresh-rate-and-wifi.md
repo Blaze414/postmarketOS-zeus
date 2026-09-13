@@ -69,3 +69,34 @@ trains at all once power is applied - which needs either a host driver that
 defers to the pwrctrl, or a way to force retraining - and to check whether WiFi
 works on cupid with this same fork, since our WiFi and PCIe nodes are byte for
 byte identical to it.
+
+## Sound: there was no sound card at all
+
+`/sys/class/sound/` contained only `timer`. The failure was early and total:
+
+```
+qcom-apm gprsvc:service:2:1: Direct firmware load for qcom/sm8450/Xiaomi-12-tplg.bin failed with error -2
+qcom-apm gprsvc:service:2:1: tplg firmware loading qcom/sm8450/Xiaomi-12-tplg.bin failed -2
+snd-sc8280xp sound: ASoC: failed to instantiate card -2
+```
+
+`audioreach_tplg_init()` builds the topology filename from the card itself:
+
+```c
+kasprintf(GFP_KERNEL, "qcom/%s/%s-tplg.bin", card->driver_name, card->name);
+```
+
+`card->name` comes from the devicetree `model` property, which is `"Xiaomi-12"`,
+so it asks for `qcom/sm8450/Xiaomi-12-tplg.bin`. linux-firmware ships exactly one
+topology for this SoC, `SM8450-HDK-tplg.bin.zst`, and nothing for any phone. With
+no topology the APM component cannot probe, and without it the entire card is
+torn down - which is why nothing at all appeared, not merely a missing output.
+
+The HDK is the reference board for this SoC and the audioreach topology describes
+ADSP graphs, which are SoC-level rather than board-level, so pointing zeus at it
+brings the card up. `card0` now exists with two playback and two capture PCMs and
+a headset jack, `wcd938x` binds, and all four CS35L41 speaker amps probe.
+
+This is a workaround, not a finished port. Board-specific routing still needs a
+zeus topology, and the `audio-routing` property in the devicetree - the whole mic
+matrix - is still commented out.
