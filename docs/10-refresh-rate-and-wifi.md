@@ -355,3 +355,28 @@ driver will want for speaker protection once there is a working path to them.
 
 Audio is therefore two problems deep: an ADSP that does not answer, and behind
 it a driver stack with no TDM. Neither is a devicetree fix.
+
+### WiFi, properly: retry training with an endpoint reset
+
+The devicetree-only fix turned out to be **racy**, not correct. It worked on one
+kernel and failed on the next: enabling EROFS made the kernel slightly larger,
+boot timing shifted, and `Phy link never came up` came back with the hog present
+and the rails held on exactly as before. A fix that depends on winning a race is
+not a fix.
+
+The real problem is that PCIe requires PERST# to be held across the endpoint's
+power-on, and `pci_pwrctrl_create_devices()` runs from `pci_bus_add_device()` -
+after the bus scan, so after training. If the endpoint comes up even slightly
+late, PERST has already been released and no amount of retraining recovers it,
+because it is the *endpoint* that needs the reset.
+
+`0004-pcie-qcom-retry-link-training-with-endpoint-reset.patch` makes
+`qcom_pcie_start_link()` wait for the link and, if it is down, assert and
+deassert PERST before trying again, three times. `qcom_ep_reset_deassert()`
+already holds PERST for the 100 ms the spec requires, so a retry only costs that
+when the link is genuinely down - a healthy boot pays nothing.
+
+The devicetree changes are kept, because powering the endpoint early is still the
+right description of this board and means the retry is rarely needed. Across
+reboots the link now comes up on the first attempt at ~0.4-0.55 s, `wlan0`
+appears every time, and scanning returns networks.
