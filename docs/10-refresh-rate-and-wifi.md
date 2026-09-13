@@ -100,3 +100,47 @@ a headset jack, `wcd938x` binds, and all four CS35L41 speaker amps probe.
 This is a workaround, not a finished port. Board-specific routing still needs a
 zeus topology, and the `audio-routing` property in the devicetree - the whole mic
 matrix - is still commented out.
+
+## Bluetooth: the controller had no address
+
+`hci0` existed, `QCA setup on UART is completed`, rfkill unblocked, `bluetoothd`
+running - and `bluetoothctl` still said **"No default controller available"**.
+The giveaway was sysfs: `/sys/class/bluetooth/hci0/` had no `address` attribute
+at all. The controller was registered as *unconfigured*, so BlueZ would not adopt
+it.
+
+QCA parts take their address from `local-bd-address` in the devicetree. Neither
+our node nor cupid's set it, so the firmware came up with nothing usable.
+
+This device's factory MAC lives in its own `persist` partition:
+
+```
+/persist/qca6490/wlan_mac.bin  ->  wlan0=4ce0db31f3d8
+```
+
+Qualcomm gives Bluetooth the next address along, and the property is little
+endian, so `local-bd-address = [ d9 f3 31 db e0 4c ]` reads back as
+4C:E0:DB:31:F3:D9. `bluetoothctl show` now reports a powered controller named
+"Xiaomi 12 Pro".
+
+## Does WiFi work on cupid with this fork?
+
+Not established. The postmarketOS wiki page for xiaomi-cupid is behind Anubis and
+would not serve to an automated fetch, and neither the kernel fork nor the
+pmaports fork carries a support matrix. What the sources do show:
+
+* cupid's device package depends on `linux-firmware-ath11k`, so WiFi is at least
+  intended to work there.
+* Our WiFi, PCIe and Bluetooth nodes are byte for byte identical to cupid's -
+  including the two omissions found here, `vddpmumx`/`vddpmucx` and
+  `local-bd-address`. Bluetooth demonstrably did **not** work as shipped for
+  either device, which is some evidence that these nodes were written from a
+  template rather than validated on hardware.
+* The PHY tables for `qcom,sm8450-qmp-gen3x1-pcie-phy` are present in the kernel,
+  so the PCIe PHY itself is supported.
+
+Worth noting from the search: SM8450's PCIe0 PHY initialisation is documented as
+differing significantly from other Qualcomm SoCs, and there is recent upstream
+work on PCIe0 PHY support for SM8475, the binned variant of this SoC. That is the
+area to look at next, along with making the host controller defer to the
+pwrctrl device rather than training the link before the endpoint is powered.

@@ -1456,6 +1456,20 @@
 		vddrfa1p8-supply = <&vreg_pmu_rfa_1p7>;
 
 		max-speed = <3200000>;
+
+		/*
+		 * Without this the QCA firmware comes up with no usable address,
+		 * hci_qca registers the controller as unconfigured - no "address"
+		 * attribute in sysfs - and bluetoothd reports "No default controller
+		 * available" even though the chip set up fine over UART. cupid does not
+		 * set it either.
+		 *
+		 * Derived from this device's own factory WLAN MAC, which lives in
+		 * /persist/qca6490/wlan_mac.bin as 4c:e0:db:31:f3:d8; Qualcomm hands
+		 * Bluetooth the next address along. The property is little endian, so
+		 * these bytes read back as 4C:E0:DB:31:F3:D9.
+		 */
+		local-bd-address = [ d9 f3 31 db e0 4c ];
 	};
 };
 
