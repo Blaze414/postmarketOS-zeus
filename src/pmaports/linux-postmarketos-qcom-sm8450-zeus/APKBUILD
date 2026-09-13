@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=25
+pkgrel=26
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -41,6 +41,7 @@ source="
 	0003-fts-palm-rejection-and-panel-follower.patch
 	0004-pcie-qcom-retry-link-training-with-endpoint-reset.patch
 	0005-ath11k-reset-the-firmware-when-wmi-stops-answering.patch
+	0006-q6apm-poll-for-spf-readiness-like-the-downstream-driver.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -122,4 +123,5 @@ e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c3841
 6d20f8cf621cb38bfc00bdd041d5baa191320b8ab8dfa82ec0a3e9a7749d373f903f4ec1a91da72aa7cbb83407c0cc8aa2648590ea3a067df16699e3a4a53033  0003-fts-palm-rejection-and-panel-follower.patch
 3d4fa260d50072d20a946efec552f9f63f88f83040d17b44d6bb2daf05b933de05e6a4df583487e18848454e47cfcd57130b16faf86752b2dde5dee43212d1ff  0004-pcie-qcom-retry-link-training-with-endpoint-reset.patch
 64157727f53b104693af1cd7bbcefa15b1db8866e6c9133e0c54da990097fcdeae614d2652539cbb9bce9591a24855c945491bf58a1f8f9ec9c214718ceee901  0005-ath11k-reset-the-firmware-when-wmi-stops-answering.patch
+34280f458d0627be7187e4727f207ebeef125e26cdd1ac5c282fd326ae0c5269831b06c5784748ea746930a8170b57e55ffb0a8fe45f08d370b32ce2b7830cb4  0006-q6apm-poll-for-spf-readiness-like-the-downstream-driver.patch
 "
