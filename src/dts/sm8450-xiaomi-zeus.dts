@@ -813,17 +813,6 @@
 	clock-frequency = <50000000>;
 	status = "okay";
 
-	/*
-	 * Force the GENI controller into FIFO mode by taking away its GPI DMA
-	 * channels. Every register read through GENI came back as exactly 0x00 -
-	 * never garbage, never a partial value - which is what a read whose RX
-	 * data is never captured looks like, rather than a chip that is not
-	 * answering. Bitbanging the same pins proved the chip answers fine, so
-	 * the fault is on the controller side, and the DMA path is the part of
-	 * it this node can switch off from the devicetree.
-	 */
-	/delete-property/ dmas;
-	/delete-property/ dma-names;
 
 	touchscreen@0 {
 		compatible = "st,spi";
@@ -851,13 +840,13 @@
 		fts,y-max = <32000>;
 		fts,support-super-resolution = <1>;
 		/*
-		 * 1 MHz, not the 12 MHz downstream uses. Everything else about this
-		 * node now matches downstream byte for byte and the controller still
-		 * answers chip_id 0x0, so the remaining suspect is the transaction
-		 * itself against mainline's GENI SPI controller. Dropping the clock is
-		 * the standard first test for that. Raise it again once touch works.
+		 * 12 MHz, matching downstream. The clock was never the problem: reads
+		 * came back 0x00 because this driver split them into a TX-only
+		 * transfer followed by an RX-only one, which GENI does not turn into
+		 * the transaction the chip expects. With the reads flattened into a
+		 * single full duplex transfer the controller works at full speed.
 		 */
-		spi-max-frequency = <1000000>;
+		spi-max-frequency = <12000000>;
 		fts,default-fw-name = "st_fts_l1.ftb";
 		fts,config-array-size = <1>;
 

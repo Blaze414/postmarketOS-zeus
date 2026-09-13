@@ -135,3 +135,55 @@ accompanies it, so the next step is instrumenting `spi-geni-qcom.c` to see what
 
 The device is left on the bitbanged bus, since that is the only configuration
 where touch works at all.
+
+## Solved: the reads were split in two
+
+GENI was never mis-clocking. This driver builds every register read as **two
+transfers in one message**:
+
+```c
+transfer[0].len = cmdLength;  transfer[0].tx_buf = cmd;     rx_buf = NULL;  /* address */
+transfer[1].len = byteToRead; transfer[1].tx_buf = NULL;    rx_buf = outBuf; /* data */
+```
+
+A TX-only transfer followed by an RX-only one. `spi_bitbang` walks a message
+transfer by transfer with the chip select held low throughout, so the FingerTip
+sees one continuous transaction and answers - which is exactly why bitbanging
+"worked" and made the chip look healthy while GENI looked broken. GENI does not
+reproduce that shape, and the chip returns nothing: hence 0x00 on every read,
+never garbage and never partial.
+
+The fix is to stop splitting them. `fts_spi_wr()` flattens any write-then-read
+into a **single full duplex transfer**: the command bytes padded out with zeros
+to the full length, the reply taken from the tail of the rx buffer. One transfer
+per message leaves no inter-transfer behaviour for a controller to get wrong.
+Applied to all three paths - `fts_read`, `fts_writeRead` and
+`fts_writeThenWriteRead` - as
+`0002-fts-single-full-duplex-transfer-for-geni.patch`.
+
+On the real controller, first boot after the patch:
+
+```
+FW VER = 0031
+Lockdown:0x48,0x38,0x32,0x06,0x4c,0x32,0x31,0x00
+Probe Finished!
+```
+
+| | bitbang | GENI + patch |
+|---|---|---|
+| bus | `spi-gpio` (software) | `9c0000.geniqup/990000.spi` (hardware) |
+| clock | ~1 MHz, jittery | 12 MHz, matching downstream |
+| `F3 12` errors | 22710 | **0** |
+| CPU cost | a spinning bitbang loop per transfer | none |
+
+The clock was never the problem either: 12 MHz, the downstream value, works. The
+1 MHz in the devicetree was a debugging step that had been left in place.
+
+`/delete-property/ dmas` was reverted - the GPI DMA channels are back, and with
+single-transfer reads the DMA path behaves. The earlier observation that FIFO
+mode turned a silent timeout into `ERROR_BUS_R` was a real signal, but it was
+pointing at the transfer shape rather than at DMA.
+
+The `spi-gpio` twin is left in the devicetree, disabled. It cost one kernel
+config change and earned the entire diagnosis; it is worth keeping for the next
+time a peripheral looks dead.
