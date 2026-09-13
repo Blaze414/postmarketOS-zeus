@@ -64,3 +64,60 @@ version verified on hardware, A/B rather than a-only, vbmeta required, fastboot 
 Display 1440x3200, Adreno 730 with our extracted firmware, battery via qcom-battmgr,
 all three buttons, Bluetooth. Those are not guarantees for Halium, but they do confirm
 the hardware and firmware we extracted are good.
+
+## Progress: the downstream kernel builds
+
+`Image.gz`, 15,024,887 bytes, from LineageOS 5.10.256 with clang 19 and `LLVM=1`.
+Artifacts in `out/droidian/`.
+
+### Halium kconfig work
+
+`mer-kernel-check` against `gki_defconfig` + `vendor/waipio_GKI.config` reported **23
+errors**. `src/droidian/zeus_halium.config` fixes all of them; the saved result is
+`src/droidian/zeus_droidian_defconfig` (7674 lines).
+
+Notable entries:
+
+- `CONFIG_STATIC_USERMODEHELPER` must be **off** - systemd cannot work with it on
+- `DUMMY`, `INET_AH`, `INET6_AH`, `IP_NF_MATCH_RPFILTER` must be `=y`; `=m` is rejected
+- `VT`, `DEVTMPFS`, `DEVTMPFS_MOUNT`, `SYSVIPC`, `FHANDLE` - the usual Android omissions
+- the vendor Kconfig for the SPI touch driver declares `depends on I2C`, so I2C must
+  stay enabled even though the part is on SPI
+
+One reported error remains, `CONFIG_DUMMY`, and it is a false positive: the config
+does contain `CONFIG_DUMMY=y`.
+
+### The touch driver is in-tree here
+
+`TOUCHSCREEN_ST_FTS_V521_SPI` lives at `drivers/input/touchscreen/fts_spi/Kconfig` and
+is wired into the parent Makefile. This is the entire reason for taking this path.
+
+### Touch depends on the display techpack
+
+Building it in fails the vmlinux link:
+
+```
+ld.lld: error: undefined symbol: panel_event_notifier_register
+ld.lld: error: undefined symbol: register_xiaomi_touch_client
+```
+
+- `register_xiaomi_touch_client` is in-tree, in `drivers/input/touchscreen/xiaomi/`
+  (`CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE`)
+- `panel_event_notifier_*` has only *consumers* in this tree (battery charger, thermal,
+  hwmon). The provider is the external **display-drivers** techpack, available in the
+  `xiaomi-sm8450-kernel` org.
+
+So on this kernel the touchscreen genuinely depends on the display driver. Both touch
+modules are therefore `=m`, which links cleanly and defers the symbol to load time.
+
+### Next blocker
+
+`make modules` fails:
+
+```
+drivers/clk/qcom/clk-debug.o: ./include/trace/define_trace.h:95: fatal error: './trace.h' file not found
+```
+
+A missing trace header include path in the vendor clk debug code - a build-system
+quirk, not a design problem. After that: build the display-drivers techpack, then
+package with Droidian's linux-packaging-snippets using `src/droidian/kernel-info.mk`.

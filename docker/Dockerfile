@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git make gcc bc bison flex libssl-dev libelf-dev \
       gcc-aarch64-linux-gnu \
       device-tree-compiler \
+      # msm-kernel 5.10 (the Droidian/Halium path) is a clang build
+      clang lld llvm libelf-dev \
       python3 python3-venv pipx python3-libfdt \
       android-sdk-libsparse-utils \
       ca-certificates xz-utils file kmod sudo \
