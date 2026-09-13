@@ -283,3 +283,18 @@ The kernel package carries its own copies of `sm8450-xiaomi-zeus.dts` and
 change was made in `src/dts/` and the build silently used the stale package copy: the build
 succeeded, the image was produced, and the only symptom was a dtb that was the old size.
 `scripts/pmb.sh` now syncs `src/dts` and `src/panel` into the package before every build.
+
+## WiFi: still unresolved after the probe-ordering fix
+
+Building ath11k, the power sequencer and `PCI_PWRCTL`/`PCI_PWRCTL_PWRSEQ` into the kernel
+did fix the ordering - `wcn6855-pmu` now probes at 0.451s instead of 154s, well before PCIe
+enumerates at 1.41s - but the link still does not train:
+
+```
+qcom-pcie 1c00000.pcie: Phy link never came up
+```
+
+So ordering was never the whole problem. What remains: the PMU reports two supplies missing
+(`vddpmumx`, `vddpmucx`, both falling back to dummy regulators), and the PCIe PHY itself is
+unverified. PERST (tlmm 94) and WAKE (tlmm 96) are already correct in sm8450.dtsi and match
+downstream, and `wlan-en` at tlmm 80 matches too, so those are ruled out.
