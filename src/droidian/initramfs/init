@@ -42,6 +42,24 @@ fi
 
 telnetd -l /bin/sh -p 23 2>/dev/null
 
-# Keep the kernel alive and leave a console on the framebuffer.
 echo "### ready: telnet 172.16.42.1 ###" > /dev/kmsg
+
+# Deliberate panic after a grace period.
+#
+# The first attempt at this boot went completely dark: no fastboot, no adb, no
+# USB networking, nothing on screen. The initramfs's only output channel was USB
+# networking, which is useless when the failure happens before that works.
+#
+# zeus routes kernel oops logs through block2mtd/mtdoops to /dev/block/sda15
+# (see the stock cmdline in stock-dump/zeus-stock.dts), and that partition
+# survives a reboot. Panicking on purpose flushes everything printed above into
+# it, so a silent failure becomes a log we can read from pmOS afterwards.
+#
+# 120s is long enough to telnet in and cancel by killing this shell if the boot
+# actually worked.
+( sleep 120
+  echo "### no connection in 120s - panicking to flush kmsg to mtdoops ###" > /dev/kmsg
+  echo 1 > /proc/sys/kernel/sysrq 2>/dev/null
+  echo c > /proc/sysrq-trigger ) &
+
 exec sh

@@ -246,3 +246,45 @@ arguments to the halium-boot cmdline turns a silent failure into a readable one,
 without needing a serial cable.
 
 Next attempt should carry them, plus `console=ttyMSM0,115200n8` and `earlycon`.
+
+## Second attempt: still dark, and the crash log stayed empty
+
+Flashed `halium-boot-debug.img` with the full diagnostic cmdline
+(`console=ttyMSM0,115200n8 earlycon printk.always_kmsg_dump=1` plus the
+block2mtd/mtdoops arguments) and an initramfs that deliberately panics after 120s to
+flush kmsg.
+
+Result: back in fastboot after ~45 seconds, screen dark, and **no new record in
+`sda15`**. The highest index is still 1278, the pre-flash baseline, and all 8 records
+present are EvolutionX's.
+
+That is itself informative. mtdoops needs block2mtd, which needs the UFS stack up - it
+only works fairly late in boot. Nothing written means the kernel never got that far,
+or never ran at all.
+
+Combined with a ~45 second return to fastboot and no display output, the likely
+explanation is that **ABL is rejecting the boot image before the kernel starts**,
+rather than the kernel panicking.
+
+### The check that would settle it
+
+`slot-retry-count` distinguishes the two cases, and it has to be read *immediately
+after* a failed attempt, while still in fastboot:
+
+```
+fastboot getvar slot-retry-count:a
+```
+
+During the mainline port this number behaved exactly as documented: it stayed at its
+maximum when ABL rejected the image outright (AVB), and decremented when ABL handed
+control to a kernel that then failed. We never read it after a Halium attempt.
+
+If ABL is rejecting the image, the suspects are the merged devicetree (the base+overlay
+merge may not produce what ABL's own matcher expects, even with `qcom,msm-id` and the
+patched `qcom,board-id`) or the header v2 dtb field layout.
+
+### State
+
+The mainline port is intact and running: `fastboot erase vendor_boot` plus
+`fastboot flash boot out/pmb/boot.img` restores it in about 20 seconds, and `userdata`
+has never been touched through any of this.
