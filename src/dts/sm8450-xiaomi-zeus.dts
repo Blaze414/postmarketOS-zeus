@@ -833,7 +833,14 @@
 		 * panel through this phandle, which is the same property the stock
 		 * devicetree carries on this node.
 		 */
-		panel = <&zeus_panel>;
+		/*
+		 * DISABLED pending investigation: with the follower active touch
+		 * stopped entirely. If the panel unprepares and no matching prepare
+		 * reaches the follower, fts_suspend_work clears resume_bit and every
+		 * report is dropped from then on. Re-add once the ordering is
+		 * understood - the driver treats this property as optional.
+		 * panel = <&zeus_panel>;
+		 */
 		fts,irq-gpio = <&tlmm 21 IRQ_TYPE_LEVEL_LOW>;
 		fts,reset-gpio-enable;
 		fts,reset-gpio = <&tlmm 20 GPIO_ACTIVE_HIGH>;

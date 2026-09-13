@@ -263,3 +263,52 @@ firmware and in Xiaomi's HAL, not in that driver. Porting it without the Android
 userspace that drives it would add an API nothing calls. The behaviour worth
 having is the rejection itself, which is why it went straight into the report
 path instead.
+
+## The actual cause of the mistouches: the coordinate decode
+
+Tracing what the driver reports settled this in one capture. Raw event bytes
+`23 01 D1 13 D2 3F 00 00` decoded to `x=977 y=3361`, which is the driver's
+**low-resolution** branch:
+
+```c
+if (!bdata->support_super_resolution) {
+	x = (((int)event[3] & 0x0F) << 8) | (event[2]);       /* 0x3D1 = 977  */
+	y = ((int)event[4] << 4) | ((event[3] & 0xF0) >> 4);  /* 0xD21 = 3361 */
+} else {
+	x = (((int)event[3]) << 8) | (event[2]);              /* 0x13D1 = 5073  */
+	y = (((int)event[5]) << 8) | (event[4]);              /* 0x3FD2 = 16338 */
+}
+```
+
+`support_super_resolution` is declared in `fts_hw_platform_data`, branched on
+here, and **never assigned anywhere in the fork**. It was always 0, so the
+low-resolution decode was always used - while `fts,x-max`/`fts,y-max` in the
+devicetree describe the super-resolution axes, 14400 x 32000, ten times the
+1440x3200 panel.
+
+So a 12-bit coordinate was being published on an axis userspace believed was ten
+times larger. Every touch landed squashed into the top-left corner of the
+screen, nowhere near the finger - which is what "mistouches" were, and why taps
+on a keypad never hit a key. And the low-res `y` formula takes its low four bits
+from the *upper nibble of event[3]*, a byte that also carries x's high bits, so
+y jumped around erratically while x looked stable. That is exactly what the trace
+showed: x drifting smoothly, y bouncing between 210 and 3890.
+
+The fix is to parse the property the devicetree has been carrying all along.
+The driver now logs `super resolution: 1` at probe.
+
+This also retires two earlier theories. The palm rejection added from the Android
+comparison never fired once (`rejected id` count stayed 0) - the firmware was not
+reporting palms, the coordinates were simply wrong. And nothing here was ever
+about the SPI bus.
+
+### Still open
+
+A brief multi-coloured horizontal bar at the **bottom** of the screen during the
+unlock swipe. That is a display artifact, almost certainly a DSC slice or
+partial-update problem, and unrelated to touch.
+
+`drm_panel_follower` is implemented but disabled in the devicetree: with it
+active touch stopped entirely, which fits the panel unpreparing with no matching
+prepare reaching the follower, leaving `resume_bit` clear. The commented-out
+`panel = <&zeus_panel>` re-enables it once the ordering is understood.
