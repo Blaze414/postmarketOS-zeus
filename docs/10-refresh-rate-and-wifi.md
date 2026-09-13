@@ -215,3 +215,45 @@ left is specific to the WLAN side: whether the pwrseq's wlan target actually
 asserts gpio80, and whether this fork's PCIe0 support for sm8450 is complete.
 Recent upstream work on PCIe0 PHY for SM8475, the binned variant of this SoC, is
 the thread to pull.
+
+## WiFi: the wlan enable line, and why the link still will not train
+
+**gpio80 is asserted.** Reading it directly settles the open question:
+
+```
+gpio80  : out high func0 10mA pull up      <- wlan-enable
+gpio81  : out high func0 2mA pull down     <- bt-enable
+gpio94  : out high func0 2mA pull down     <- PERST#, active low, so released
+```
+
+The clocks are all running too - `gcc_pcie_0_clkref_en` enabled with the phy as
+its consumer, aux at 19.2 MHz, rchng at 100 MHz, `pcie_0_pipe_clk` at 125 MHz -
+and the QMP phy is bound at `1c06000.phy`. So the endpoint is enabled, out of
+reset, clocked and powered, on a chip whose Bluetooth half demonstrably works,
+and Data Link Layer Link Active never sets.
+
+**Where the kernel's ordering actually goes wrong.** `pci_pwrctrl_create_devices()`
+is called from `pci_bus_add_device()` in `drivers/pci/bus.c` - after the bus has
+been scanned, therefore after link training. The sequence is necessarily: train
+the link with the endpoint unpowered, fail, enumerate nothing, and only then
+create the pwrctrl device and power the chip. Nothing re-asserts PERST
+afterwards, and PCIe requires PERST# to be held while the endpoint's power comes
+up, so the part is left in a state the host cannot talk to. That also explains
+why the retrain test failed: the endpoint needs the reset, not the link.
+
+sm8450-hdk does not hit this because its WiFi module's rails are always on.
+
+**The obvious workaround does not work.** Hogging gpio80 high from the tlmm, which
+runs far earlier than the controller's 1.3s, was tried: `wlan-enable-gpios` is
+optional to pwrseq-qcom-wcn (`devm_gpiod_get_optional`), so Bluetooth kept its own
+line and continued to work. gpio80 was high, and the link still never came up.
+Reverted rather than left in the tree, because it changed nothing and made the
+devicetree describe the hardware less accurately.
+
+Asserting the enable line early is evidently not sufficient on its own - the
+chip's external supplies are only voted when the pwrseq powers on, which happens
+when Bluetooth probes at around 5.9s, so at 1.3s the part has its enable high and
+no rails behind it. Making those rails always-on, or backporting the newer
+pwrctrl ordering that defers the host bridge until the endpoint is ready, are the
+two remaining approaches. This is a kernel-version limitation and not something
+this devicetree can express.
