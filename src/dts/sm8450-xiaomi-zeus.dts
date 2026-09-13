@@ -275,6 +275,18 @@
 		vddio-supply = <&pm8350_s10>;
 		vddaon-supply = <&pmr735a_s2>;
 		vddpmu-supply = <&pm8350_s11>;
+		/*
+		 * pwrseq-qcom-wcn lists vddpmumx and vddpmucx among the supplies it
+		 * requires for wcn6855, and without them it fell back to dummy
+		 * regulators - so the PMU's MX and CX rails were never voted for.
+		 * Bluetooth came up anyway, but the PCIe side never trained and the
+		 * controller reported "Phy link never came up". cupid does not set
+		 * these either; the mapping is taken from sm8450-hdk, the reference
+		 * board for this SoC, where they are vreg_s2e_0p85 (pmr735a smps2)
+		 * and vreg_s11b_0p95 (pm8350 smps11).
+		 */
+		vddpmumx-supply = <&pmr735a_s2>;
+		vddpmucx-supply = <&pm8350_s11>;
 		vddrfa0p95-supply = <&pm8350_s11>;
 		vddrfa1p3-supply = <&pm8350_s12>;
 		vddrfa1p9-supply = <&pm8350c_s1>;

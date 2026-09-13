@@ -239,25 +239,62 @@ static int l2_38_0c_0a_dsc_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static const struct drm_display_mode l2_38_0c_0a_dsc_mode = {
-	.clock = (1440 + 32 + 16 + 32) * (3200 + 24 + 8 + 24) * 60 / 1000,
-	.hdisplay = 1440,
-	.hsync_start = 1440 + 32,
-	.hsync_end = 1440 + 32 + 16,
-	.htotal = 1440 + 32 + 16 + 32,
-	.vdisplay = 3200,
-	.vsync_start = 3200 + 24,
-	.vsync_end = 3200 + 24 + 8,
-	.vtotal = 3200 + 24 + 8 + 24,
-	.width_mm = 70,
-	.height_mm = 156,
-	.type = DRM_MODE_TYPE_DRIVER,
+/*
+ * Stock lists eight timings for this panel and every one of them carries the
+ * same porches and the same 1.36 GHz DSI clockrate - only the framerate field
+ * differs. The link is sized for 120 Hz and simply idles at the slower rates.
+ *
+ * Deriving the link from a 60 Hz-only mode therefore ran it at about half what
+ * the panel expects, so each frame took twice as long to shift out. On a command
+ * mode panel that overruns the TE window and corrupts the tail of the frame,
+ * which showed up as a brief multi-coloured bar along the bottom of the screen
+ * whenever anything moved.
+ *
+ * 120 Hz first, so it is what the connector prefers.
+ */
+#define L2_38_0C_0A_MODE(hz) {						\
+	.clock = (1440 + 32 + 16 + 32) * (3200 + 24 + 8 + 24) * (hz) / 1000, \
+	.hdisplay = 1440,						\
+	.hsync_start = 1440 + 32,					\
+	.hsync_end = 1440 + 32 + 16,					\
+	.htotal = 1440 + 32 + 16 + 32,					\
+	.vdisplay = 3200,						\
+	.vsync_start = 3200 + 24,					\
+	.vsync_end = 3200 + 24 + 8,					\
+	.vtotal = 3200 + 24 + 8 + 24,					\
+	.width_mm = 70,							\
+	.height_mm = 156,						\
+	.type = DRM_MODE_TYPE_DRIVER,					\
+}
+
+static const struct drm_display_mode l2_38_0c_0a_dsc_modes[] = {
+	L2_38_0C_0A_MODE(120),
+	L2_38_0C_0A_MODE(60),
 };
 
 static int l2_38_0c_0a_dsc_get_modes(struct drm_panel *panel,
 				     struct drm_connector *connector)
 {
-	return drm_connector_helper_get_modes_fixed(connector, &l2_38_0c_0a_dsc_mode);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(l2_38_0c_0a_dsc_modes); i++) {
+		struct drm_display_mode *mode;
+
+		mode = drm_mode_duplicate(connector->dev,
+					  &l2_38_0c_0a_dsc_modes[i]);
+		if (!mode)
+			return i ? i : -ENOMEM;
+
+		drm_mode_set_name(mode);
+		if (i == 0)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+		drm_mode_probed_add(connector, mode);
+	}
+
+	connector->display_info.width_mm = l2_38_0c_0a_dsc_modes[0].width_mm;
+	connector->display_info.height_mm = l2_38_0c_0a_dsc_modes[0].height_mm;
+
+	return ARRAY_SIZE(l2_38_0c_0a_dsc_modes);
 }
 
 static const struct drm_panel_funcs l2_38_0c_0a_dsc_panel_funcs = {
