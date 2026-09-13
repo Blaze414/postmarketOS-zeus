@@ -257,3 +257,43 @@ no rails behind it. Making those rails always-on, or backporting the newer
 pwrctrl ordering that defers the host bridge until the endpoint is ready, are the
 two remaining approaches. This is a kernel-version limitation and not something
 this devicetree can express.
+
+## WiFi: solved
+
+Two changes together, neither sufficient alone.
+
+**Assert the enable line early.** `wlan_en_hog` drives gpio80 high when the tlmm
+probes, far ahead of the PCIe controller at ~1.3s. `wlan-enable-gpios` is optional
+to `pwrseq-qcom-wcn` (`devm_gpiod_get_optional`), so the pmu node simply stops
+claiming it and Bluetooth keeps its own line.
+
+**Hold the rails on.** Hogging alone changed nothing, because the WCN6855's
+external supplies are only voted when the pwrseq powers up - which happens when
+Bluetooth probes, seconds after PCIe has already given up. The five rails behind
+this part (`pm8350_s10`, `pm8350_s11`, `pm8350_s12`, `pm8350c_s1`, `pmr735a_s2`)
+are now `regulator-always-on` / `regulator-boot-on`, so the chip has power from
+boot.
+
+With both in place the endpoint is enabled, powered and out of reset before the
+controller ever looks for it:
+
+```
+qcom-pcie 1c00000.pcie: PCIe Gen.2 x1 link up
+pci 0000:01:00.0: [17cb:1103] type 00 class 0x028000 PCIe Endpoint
+ath11k_pci 0000:01:00.0: wcn6855 hw2.1
+ath11k_pci 0000:01:00.0: fw_version 0x11088c35 ... WLAN.HSP.1.1-03125
+```
+
+`wlan0` appears, NetworkManager manages it, and scanning returns real networks.
+
+The underlying kernel ordering is still wrong - `pci_pwrctrl_create_devices()`
+runs from `pci_bus_add_device()`, after the bus scan and therefore after link
+training - and a newer kernel that defers the host bridge until the pwrctrl is
+ready would make both of these unnecessary. Until then this is the devicetree
+sidestepping the problem by ensuring the endpoint never needs to be powered late.
+
+One loose end: `permaddr` reads `00:03:7f:12:38:b7`, an Atheros default rather
+than this device's factory MAC (`4c:e0:db:31:f3:d8`, in
+`/persist/qca6490/wlan_mac.bin`). ath11k takes it from board data/OTP, which is
+evidently not provisioned for it here. NetworkManager randomises the in-use
+address anyway, so this only matters for MAC filtering or DHCP reservations.
