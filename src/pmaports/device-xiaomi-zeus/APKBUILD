@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=5
+pkgrel=6
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -62,7 +62,11 @@ phosh() {
 
 openrc() {
 	install_if="$pkgname=$pkgver-r$pkgrel openrc"
-	depends="qbootctl-openrc tqftpserv-openrc"
+	# qbootctl-openrc does not exist in this pmaports branch; the init script
+	# comes with qbootctl itself, so the runlevel is wired up in the
+	# post-install instead.
+	depends="tqftpserv-openrc"
+	install="$subpkgname.post-install"
 
 	mkdir -p "$subpkgdir"
 }

@@ -194,6 +194,23 @@
 			reg = <0 0xa7000000 0x0 0x400000>;
 			console-size = <0x200000>;
 			pmsg-size = <0x200000>;
+			/*
+			 * Zone sizes must match the downstream dtb exactly: ramoops
+			 * lays out dmesg records first, then console, so adding a
+			 * record-size here would shift the console zone and make the
+			 * downstream kernel's log unreadable. (2M + 2M also already
+			 * fills the 4M region.)
+			 *
+			 * no-map keeps this out of the linear map so reserved_mem
+			 * hands it over as ioremap_wc. Mapped cached instead, the
+			 * console sits in CPU cache and never reaches DRAM before
+			 * the reset, which is the whole point of the region.
+			 * ecc-size must stay absent: it shrinks buffer_size for a
+			 * parity footer, so a record written by the no-ECC
+			 * downstream kernel reads back as an invalid buffer and
+			 * gets zapped before it can be recovered.
+			 */
+			no-map;
 		};
 	};
 

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Nothing else puts qbootctl in a runlevel. On this device the init script ships
+# with the main qbootctl package rather than a qbootctl-openrc subpackage, so
+# depending on that subpackage is not enough - it is not even available here.
+#
+# Without it the slot is never marked successful, ABL decrements its retry
+# counter on every single boot, and after about seven boots the device declares
+# the slot unbootable and drops to fastboot on its own. That looks exactly like
+# a crash and is not one.
+rc-update add qbootctl default 2>/dev/null || true
