@@ -512,3 +512,53 @@ confirmed.
 
 Both the JSON and the wrapper ship from the device package, and the post-install
 switches greetd's `initial_session` over to the wrapper.
+
+## Stability: let ath11k recover when the firmware stops answering
+
+The WiFi firmware wedges: WMI commands start returning -EAGAIN and never
+recover. `ath11k_wmi_cmd_send()` logs the timeout and returns, and nothing above
+it reacts, so callers retry for ever. The visible result is a `wlan0` that is up
+but cannot scan - and, because the driver's workqueue stays blocked, **a machine
+that will not shut down**. Three reboots during this work sat in D state behind a
+stuck `kworker/+events` while uptime kept climbing; `sysrq-b` was what actually
+got through.
+
+A firmware *crash* is handled - MHI's RDDM path queues `reset_work`. A silent
+timeout is not.
+`0005-ath11k-reset-the-firmware-when-wmi-stops-answering.patch` counts
+consecutive unanswered commands and, after five, asks for the same reset.
+`ath11k_core_reset()` already rate limits itself through `fail_cont_count` and
+ignores the request before the device is registered, so it cannot spin. The
+counter is cleared on any successful command.
+
+This does not stop the firmware wedging - that is the generic board data, which
+cannot be fixed from here - but it should turn a wedge from "reboot the phone"
+into a few seconds of dropped WiFi.
+
+## CPU policy
+
+conservative governor on all three clusters, with the big ones capped: policy4
+(cores 4-6) at 1881600 from 2496000, policy7 (prime) at 1728000 from 2841600.
+Both are real entries in the SoC's frequency tables.
+
+`conservative` is a **module** in this kernel and does not appear in
+`scaling_available_governors` until loaded - writing the name before that fails
+silently, which is worth knowing before concluding the governor is unsupported.
+`/etc/local.d/zeus-cpufreq.start` loads it and applies everything;
+`/etc/udev/rules.d/50-cpufreq.rules` re-runs it when a CPU appears, so the policy
+survives hotplug rather than only boot.
+
+## Camera: not portable to this device
+
+Not a porting job. The CAMSS driver supports msm8916, msm8953, msm8996, sc7280,
+sc8280xp, sdm660, sdm845 and sm8250 - **no sm8450** - and `sm8450.dtsi` contains
+no camss node at all. There is nothing to enable: this SoC's camera subsystem has
+no mainline driver, so supporting it means writing a new CAMSS variant and its
+devicetree, which is upstream-scale work rather than configuration.
+
+## Audio: tqftpserv ordering ruled out
+
+`tqftpserv` was in no runlevel at all and is now enabled at boot, starting before
+the ADSP comes up at ~6.6s. `APM_CMD_GET_SPF_STATE` still times out at ~12s, so
+the ADSP not being able to fetch files was not the cause either. That theory
+joins pd-mapper and the DSP firmware placement in the ruled-out list.
