@@ -210,3 +210,39 @@ does `fts_touch_spi` read a real chip id when `xiaomi_touch` and
 4. `telnet 172.16.42.1`, then `dmesg | grep FTS`
 
 This overwrites the working mainline install.
+
+## First flash attempt: dark, no output
+
+`vendor_boot` restored and `halium-boot.img` flashed to `boot_a`, both OK. The device
+then reached none of fastboot, adb or USB networking, and the screen stayed dark.
+
+Ruled out immediately: busybox in the initramfs is statically linked, so `/init` had a
+working interpreter.
+
+What remains indistinguishable from here:
+
+1. ABL rejected the merged devicetree despite the board-id patch
+2. the kernel panicked early
+3. the initramfs ran and failed silently (USB gadget never came up)
+
+All three look the same: silence. The mainline port was recovered by re-erasing
+`vendor_boot` and reflashing `out/pmb/boot.img`; pmOS came back in 20 seconds with
+`userdata` untouched.
+
+## The diagnostic channel we should have used first
+
+zeus's own stock kernel cmdline (from `stock-dump/zeus-stock.dts`) shows Xiaomi routes
+oops logs to a partition:
+
+```
+block2mtd.block2mtd=/dev/block/sda15,2097152
+mtdoops.mtddev=0 mtdoops.record_size=2097152 mtdoops.dump_oops=0
+pstore.compress=none printk.always_kmsg_dump=1
+```
+
+So a panicking kernel writes its log to **sda15**, which survives a reboot - and we
+have a working OS on this device that can read that partition afterwards. Adding those
+arguments to the halium-boot cmdline turns a silent failure into a readable one,
+without needing a serial cable.
+
+Next attempt should carry them, plus `console=ttyMSM0,115200n8` and `earlycon`.
