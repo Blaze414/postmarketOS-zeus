@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=9
+pkgrel=10
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -45,6 +45,7 @@ source="
 	phoc.ini
 	xiaomi,zeus.json
 	zeus-phosh-session
+	zeus-cpufreq.start
 "
 
 build() {
@@ -53,6 +54,9 @@ build() {
 
 package() {
 	devicepkg_package $startdir $pkgname
+
+	install -D -m755 "$srcdir"/zeus-cpufreq.start \
+		"$pkgdir"/etc/local.d/zeus-cpufreq.start
 }
 
 phosh() {

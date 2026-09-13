@@ -45,3 +45,13 @@ GC=/etc/phrog/greetd-config.toml
 if [ -e "$GC" ] && grep -q '^command = "/usr/bin/phosh-session"' "$GC"; then
 	sed -i 's|^command = "/usr/bin/phosh-session"|command = "/usr/local/bin/zeus-phosh-session"|' "$GC"
 fi
+
+# The compositor gets respawned without the session wrapper's environment, so
+# the cutout overlay is set globally as well - otherwise phosh silently loses
+# the panel definition mid-session.
+if ! grep -q G_RESOURCE_OVERLAYS /etc/environment 2>/dev/null; then
+	printf '%s\n' \
+	  'G_RESOURCE_OVERLAYS=/mobi/phosh/gmobile/devices/display-panels/xiaomi,zeus.json=/usr/share/gmobile/devices/display-panels/xiaomi,zeus.json' \
+	  >> /etc/environment
+fi
+rc-update add local default 2>/dev/null || true

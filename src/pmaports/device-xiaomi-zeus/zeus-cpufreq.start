@@ -1,0 +1,17 @@
+#!/bin/sh
+# Cap the big clusters.
+#
+# Requested caps: cores 4-6 at 1881600 (from 2496000) and core 7 at 1728000
+# (from 2841600). Both are real entries in this SoC's frequency tables, so the
+# governor lands exactly on them rather than rounding.
+#
+# This trades peak performance for heat and battery. To undo, delete this file
+# and reboot, or write the original maxima back:
+#   cpu4-6: 2496000    cpu7: 2841600
+for c in 4 5 6; do
+	[ -w /sys/devices/system/cpu/cpu$c/cpufreq/scaling_max_freq ] &&
+		echo 1881600 > /sys/devices/system/cpu/cpu$c/cpufreq/scaling_max_freq
+done
+[ -w /sys/devices/system/cpu/cpu7/cpufreq/scaling_max_freq ] &&
+	echo 1728000 > /sys/devices/system/cpu/cpu7/cpufreq/scaling_max_freq
+exit 0
