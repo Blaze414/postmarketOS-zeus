@@ -430,3 +430,49 @@ Shipping a guessed cutout is worse than shipping none: phosh would route the
 clock and status icons around the wrong region. So this is prepared but not
 built in, pending either the real figure from framework-res or one visual check
 against the hardware.
+
+## WiFi instability: what the board data experiments showed
+
+WiFi works from boot and scans, but WMI commands intermittently time out, and in
+one session the endpoint dropped off the bus entirely:
+
+```
+ath11k_pci 0000:01:00.0: pci device id mismatch: 0xffff 0x1103
+pcieport 0000:00:00.0: PCIe Bus Error: severity=Uncorrectable (Non-Fatal)
+ath11k_pci 0000:01:00.0: AER: can't recover (no error_detected callback)
+```
+
+`0xffff` is config space reading all ones - the device had gone. The root port's
+AER fatal counter shows `SDES 1`, Surprise Down: the link vanished rather than
+erroring, which is what a chip reset looks like from the host side. ath11k has no
+`error_detected` callback, so the PCI core cannot recover it.
+
+The obvious suspect was board data. The device reports **`board_id 0xff`**, and
+linux-firmware's `board-2.bin` for WCN6855 hw2.1 is only a symlink to the hw2.0
+container, so ath11k falls back to generic calibration - which also explains the
+`permaddr` changing between boots.
+
+Two attempts to supply the device's real board data, both **failed and reverted**:
+
+1. **Raw BDF as `board.bin`.** Android keeps 173 of them on the modem partition
+   (`/mnt/m/image/bdwlan.e01`..., plus `bdwlan.elf` as the default), each 59932
+   bytes. They are ELF-wrapped, so `scripts/`-style extraction pulls the single
+   PT_LOAD segment out as a 58180-byte blob. Result:
+   `failed to wait board file download request: -110`.
+2. **A proper `board-2.bin` container.** Built to ath11k's format - magic
+   `QCA-ATH11K-BOARD\0` padded to 4, then nested IEs - keyed to the exact name
+   ath11k asks for, `bus=pci,vendor=17cb,device=1103,subsystem-vendor=17cb,
+   subsystem-device=0108,qmi-chip-id=18,qmi-board-id=255`. Result, immediately at
+   probe: `firmware crashed: MHI_CB_EE_RDDM`.
+
+So the vendor BDF is not interchangeable with the firmware ath11k ships; the
+downstream cnss driver and the mainline ath11k firmware expect different board
+data. Both changes are reverted and the stock container is back in place.
+
+Current state, measured passively over several minutes: scanning returns six
+networks consistently, no firmware crashes, and the endpoint stays on the bus,
+with WMI timeouts accumulating slowly in the background.
+
+A note on method: `retrain.py` **sets the Link Control retrain bit**, so polling
+with it perturbs the link being measured - a WMI timeout appeared right after one
+such poll. It is a one-shot diagnostic, not a monitor.
