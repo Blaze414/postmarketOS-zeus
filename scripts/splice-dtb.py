@@ -38,7 +38,7 @@ def split_appended(kernel_region):
     return kernel_region[:i], kernel_region[i:]
 
 
-def splice(boot, new_dtb):
+def splice(boot, new_dtb, new_kernel=None):
     if boot[:8] != b'ANDROID!':
         raise SystemExit('!! not an Android boot image')
     ks, _ka, rs, _ra, ss, _sa, _tags, ps = struct.unpack_from('<8I', boot, OFF_KERNEL_SIZE)
@@ -62,9 +62,15 @@ def splice(boot, new_dtb):
     replaced = []
 
     kern, appended = split_appended(regions[0])
-    if appended is not None:
+    if new_kernel is not None:
+        # a freshly built Image.gz has no dtb on it yet
+        new_kernel, _ = split_appended(new_kernel)
+        replaced.append('kernel (%d -> %d)' % (len(kern), len(new_kernel)))
+        kern = new_kernel
+    if appended is not None or new_kernel is not None:
         regions[0] = kern + new_dtb
-        replaced.append('appended (%d -> %d)' % (len(appended), len(new_dtb)))
+        if appended is not None:
+            replaced.append('appended (%d -> %d)' % (len(appended), len(new_dtb)))
 
     if hv >= 2 and sizes[4]:
         if regions[4][:4] != FDT_MAGIC:
@@ -106,10 +112,14 @@ def dtbs_in(img):
 
 def main():
     img, dtb, dst = sys.argv[1], sys.argv[2], sys.argv[3]
+    # Optional 4th argument swaps the kernel too, so a rebuilt kernel can be
+    # dropped into the existing boot image without a full pmbootstrap install
+    # (which would reflash the rootfs and lose whatever is configured on it).
+    kernel = open(sys.argv[4], 'rb').read() if len(sys.argv) > 4 else None
     new = open(dtb, 'rb').read()
     if new[:4] != FDT_MAGIC:
         raise SystemExit('!! %s is not a dtb' % dtb)
-    out, replaced = splice(open(img, 'rb').read(), new)
+    out, replaced = splice(open(img, 'rb').read(), new, kernel)
     open(dst, 'wb').write(out)
     print('replaced: ' + ', '.join(replaced))
 

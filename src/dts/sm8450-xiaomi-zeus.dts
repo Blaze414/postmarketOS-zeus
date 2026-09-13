@@ -828,7 +828,13 @@
 		fts,irq-gpio = <&tlmm 21 IRQ_TYPE_LEVEL_LOW>;
 		fts,reset-gpio-enable;
 		fts,reset-gpio = <&tlmm 20 GPIO_ACTIVE_HIGH>;
-		fts,irq-flags = <IRQ_TYPE_LEVEL_LOW>;
+/*
+		 * Passed straight to request_threaded_irq, which rejects a threaded irq
+		 * with no primary handler unless IRQF_ONESHOT is set - the driver passes
+		 * NULL for the primary. IRQ_TYPE_LEVEL_LOW is IRQF_TRIGGER_LOW (0x8), so
+		 * 0x2008 is that plus IRQF_ONESHOT and nothing else.
+		 */
+		fts,irq-flags = <0x2008>;
 		fts,x-max = <14400>;
 		fts,y-max = <32000>;
 		fts,support-super-resolution = <1>;
@@ -1797,4 +1803,79 @@
 				};
 			};
 		};
+};
+
+/*
+ * A bitbanged twin of the touchscreen bus, disabled by default.
+ *
+ * The ST FingerTip controller answers every register read with 0x00 and never
+ * acknowledges a reset, with the rails measured on, the pins muxed to qup4 and
+ * the driver reaching the bus. That leaves two possibilities which no amount of
+ * devicetree work distinguishes: the chip is mute, or mainline's GENI SPI
+ * controller is not producing the transaction the chip expects.
+ *
+ * spi-gpio drives CLK/MOSI/CS as plain GPIOs and samples MISO in software, so
+ * it bypasses GENI entirely. Same chip, same pins, same driver, different
+ * controller. A real chip id here means GENI is at fault; another 0x00 means the
+ * chip is genuinely mute and the devicetree is not where the bug lives.
+ *
+ * Exactly one of this node and &spi4 may be enabled: they claim the same pins.
+ * scripts/select-spi.py flips a built dtb between the two.
+ */
+/ {
+	spi_bitbang: spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		/* qup_spi4_data_clk is gpio16,17,18 in that order, plus gpio19 for CS. */
+		miso-gpios = <&tlmm 16 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&tlmm 17 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&tlmm 18 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&tlmm 19 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		touchscreen@0 {
+			compatible = "st,spi";
+			reg = <0x0>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
+			/*
+			 * The driver bails with "Failed to init pinctrl" without these.
+			 * Both states cover only gpio20/21 (reset and irq), so they do
+			 * not touch the four bus pins spi-gpio is bitbanging.
+			 */
+			pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+			pinctrl-0 = <&mi_ts_active>;
+			pinctrl-1 = <&mi_ts_suspend>;
+			avdd-supply = <&vreg_l3j>;
+			vdd-supply = <&pm8350c_l2>;
+			fts,pwr-reg-name = "avdd";
+			fts,bus-reg-name = "vdd";
+			fts,irq-gpio = <&tlmm 21 IRQ_TYPE_LEVEL_LOW>;
+			fts,reset-gpio-enable;
+			fts,reset-gpio = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+/*
+			 * Passed straight to request_threaded_irq, which rejects a threaded irq
+			 * with no primary handler unless IRQF_ONESHOT is set - the driver passes
+			 * NULL for the primary. IRQ_TYPE_LEVEL_LOW is IRQF_TRIGGER_LOW (0x8), so
+			 * 0x2008 is that plus IRQF_ONESHOT and nothing else.
+			 */
+			fts,irq-flags = <0x2008>;
+			fts,x-max = <14400>;
+			fts,y-max = <32000>;
+			fts,support-super-resolution = <1>;
+			/* bitbang tops out well below this; the value is a ceiling, not a target */
+			spi-max-frequency = <1000000>;
+			fts,default-fw-name = "st_fts_l1.ftb";
+			fts,config-array-size = <1>;
+
+			fts,cfg_0 {
+				fts,tp-vendor = <0x38>;
+				fts,fw-name = "st_fts_l1.ftb";
+				fts,limit-name = "stm_fts_production_limits.csv";
+			};
+		};
+	};
 };
