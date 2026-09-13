@@ -110,14 +110,49 @@ ld.lld: error: undefined symbol: register_xiaomi_touch_client
 So on this kernel the touchscreen genuinely depends on the display driver. Both touch
 modules are therefore `=m`, which links cleanly and defers the symbol to load time.
 
-### Next blocker
+### Modules build too - 333 of them
 
-`make modules` fails:
+`make modules` initially failed across several vendor directories with
 
 ```
-drivers/clk/qcom/clk-debug.o: ./include/trace/define_trace.h:95: fatal error: './trace.h' file not found
+include/trace/define_trace.h:95: fatal error: './trace.h' file not found
 ```
 
-A missing trace header include path in the vendor clk debug code - a build-system
-quirk, not a design problem. After that: build the display-drivers techpack, then
-package with Droidian's linux-packaging-snippets using `src/droidian/kernel-info.mk`.
+The trace headers are present; the directories just lack `$(src)` on the include
+path. Fixed systematically by adding `ccflags-y += -I$(src)` to every Makefile in a
+directory shipping a `*trace*.h` - 77 Makefiles in total. Note the glob has to be
+`*trace*.h`, not `trace*.h`: `drivers/tty/serial/serial_trace.h` does not match the
+narrower one.
+
+Then modpost failed on undefined `get_hw_version_platform` and
+`get_hw_country_version`, referenced by the FTS touch driver and by the CNSS/ICNSS
+WiFi platform drivers. Provider is `drivers/misc/hwid/hwid.c`, symbol
+`CONFIG_MI_HARDWARE_ID`, default n. Enabled.
+
+### Touch does NOT need the display techpack
+
+Worth correcting: `fts_touch_spi.ko` declares `depends: xiaomi_touch,panel_event_notifier`,
+and it looked like the notifier would have to come from the external display-drivers
+repo. It does not - `drivers/soc/qcom/panel_event_notifier.c` is **in this kernel tree**
+and exports both symbols. It builds as `panel_event_notifier.ko` alongside everything
+else. The lineage-20 display-drivers techpack does not contain the symbol at all.
+
+Full closure for touch, all three built:
+
+| module | depends on |
+|---|---|
+| `fts_touch_spi.ko` (2.6 MB) | `xiaomi_touch`, `panel_event_notifier` |
+| `xiaomi_touch.ko` (339 KB) | `panel_event_notifier` |
+| `panel_event_notifier.ko` (141 KB) | - |
+
+The display techpack is still needed for **display**, but it is off the critical path
+for proving touch works.
+
+### Next steps
+
+1. Build the Halium initramfs and assemble `halium-boot.img` using
+   `src/droidian/kernel-info.mk`.
+2. Restore `vendor_boot` and `dtbo` on the device (stock images verified in
+   `~/Downloads`), since Halium boots the vendor stack.
+3. Flash and check whether `fts_touch_spi` finds its chip id - the single question
+   this whole path exists to answer.
