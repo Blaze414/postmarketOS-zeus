@@ -1,0 +1,19 @@
+--- a/drivers/input/touchscreen/fts_spi/fts_lib/ftsIO.c	2026-09-13 04:56:13.528417795 +0000
++++ b/drivers/input/touchscreen/fts_spi/fts_lib/ftsIO.c	2026-09-13 04:56:13.528601670 +0000
+@@ -248,11 +248,16 @@
+ 		return ERROR_BUS_O;
+ 	}
+ 
++	logError(1, "%s ZEUSDBG writeRead: cmdLength=%d byteToRead=%d\n", tag,
++		 cmdLength, byteToRead);
+ 	while (retry < I2C_RETRY && ret < OK) {
+ #ifdef I2C_INTERFACE
+ 		ret = i2c_transfer(getClient()->adapter, I2CMsg, 2);
+ #else
+ 		ret = spi_sync(getClient(), &msg);
++		logError(1, "%s ZEUSDBG spi_sync ret=%d out[0]=%02X out[1]=%02X\n",
++			 tag, ret, byteToRead > 0 ? outBuf[0] : 0xEE,
++			 byteToRead > 1 ? outBuf[1] : 0xEE);
+ #endif
+ 
+ 		retry++;

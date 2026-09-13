@@ -1,0 +1,56 @@
+--- a/drivers/input/touchscreen/fts_spi/fts_lib/ftsIO.c	2026-09-13 05:17:35.214660638 +0000
++++ b/drivers/input/touchscreen/fts_spi/fts_lib/ftsIO.c	2026-09-13 05:17:35.214812597 +0000
+@@ -142,6 +142,26 @@
+ * @param byteToRead number of bytes to read
+ * @return OK if success or an error code which specify the type of error encountered
+ */
++
++/*
++ * Qualcomm's GENI SPI controller does not carry out receive-only transfers
++ * (tx_buf == NULL): spi_sync() returns success, but the transfer never reaches
++ * the wire - it does not even appear in the controller's transfer-size
++ * histogram - and the receive buffer is left untouched, so every register read
++ * comes back as zeroes. Downstream's SPI driver tolerated this; mainline's does
++ * not. Give every read a zeroed transmit buffer so it becomes an ordinary
++ * full-duplex transfer.
++ */
++#define FTS_DUMMY_TX_MAX 4096
++static u8 fts_dummy_tx_buf[FTS_DUMMY_TX_MAX];
++
++static inline const u8 *fts_dummy_tx(int len)
++{
++	if (len <= 0 || len > FTS_DUMMY_TX_MAX)
++		return NULL;
++	return fts_dummy_tx_buf;
++}
++
+ int fts_read(u8 *outBuf, int byteToRead)
+ {
+ 	int ret = -1;
+@@ -163,7 +183,7 @@
+ 	transfer[0].len = byteToRead;
+ 	transfer[0].delay.value = SPI_DELAY_CS;
+ 	transfer[0].delay.unit = SPI_DELAY_UNIT_USECS;
+-	transfer[0].tx_buf = NULL;
++	transfer[0].tx_buf = fts_dummy_tx(byteToRead);
+ 	transfer[0].rx_buf = outBuf;
+ 	spi_message_add_tail(&transfer[0], &msg);
+ #endif
+@@ -233,7 +253,7 @@
+ 	transfer[1].len = byteToRead;
+ 	transfer[1].delay.value = SPI_DELAY_CS;
+ 	transfer[1].delay.unit = SPI_DELAY_UNIT_USECS;
+-	transfer[1].tx_buf = NULL;
++	transfer[1].tx_buf = fts_dummy_tx(byteToRead);
+ 	transfer[1].rx_buf = outBuf;
+ 	spi_message_add_tail(&transfer[1], &msg);
+ 
+@@ -595,7 +615,7 @@
+ 	transfer[2].len = byteToRead;
+ 	transfer[2].delay.value = SPI_DELAY_CS;
+ 	transfer[2].delay.unit = SPI_DELAY_UNIT_USECS;
+-	transfer[2].tx_buf = NULL;
++	transfer[2].tx_buf = fts_dummy_tx(byteToRead);
+ 	transfer[2].rx_buf = outBuf;
+ 	spi_message_add_tail(&transfer[2], &msg);
+ #endif
