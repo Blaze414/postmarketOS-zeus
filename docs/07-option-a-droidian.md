@@ -156,3 +156,57 @@ for proving touch works.
    `~/Downloads`), since Halium boots the vendor stack.
 3. Flash and check whether `fts_touch_spi` finds its chip id - the single question
    this whole path exists to answer.
+
+## A flashable boot image exists
+
+`out/droidian/halium-boot.img` - 17,342,464 bytes, `ANDROID!`, header v2, page size
+4096, kernel 15,024,887 / ramdisk 1,854,971 / dtb 451,723.
+
+Contents: the downstream 5.10.256 kernel, a minimal diagnostic initramfs, and the
+zeus devicetree.
+
+### Devicetree
+
+zeus is an **overlay** on `waipio.dtb`, and the entire `dtbo-y` list sits behind
+`CONFIG_BUILD_ARM64_DT_OVERLAY` - without it no `.dtbo` is emitted at all. With that
+enabled, `waipio.dtb` (396 KB) and `zeus-sm8450-pm8008-overlay.dtbo` (74 KB) build,
+and `fdtoverlay` merges them into `zeus-merged.dtb` (451 KB), which carries the full
+vendor `fts@0` node.
+
+Merging rather than relying on the `dtbo` partition is deliberate: that partition is
+erased from the mainline work, and a self-contained dtb avoids depending on ABL's
+overlay machinery. The merged dtb keeps `qcom,msm-id = <0x1c9 0x10000>`, which is
+what ABL matches on.
+
+The display overlay (`zeus-sde-display-mtp-overlay.dtbo`) does **not** apply to this
+base - `fdtoverlay` returns `FDT_ERR_NOTFOUND`. It targets a different base dtb. Not
+needed to test touch.
+
+### Build fixes needed along the way
+
+| problem | fix |
+|---|---|
+| `./trace.h file not found` across vendor dirs | `ccflags-y += -I$(src)` in every Makefile shipping a `*trace*.h` (77 of them) |
+| `get_hw_version_platform` undefined | `CONFIG_MI_HARDWARE_ID=y` (`drivers/misc/hwid`) |
+| `bindings/qcom,audio-ext-clk.h` not found | headers live in the **audio-kernel techpack**, not the devicetrees repo; merged into `scripts/dtc/include-prefixes/bindings` |
+| `dt-bindings/msm-camera.h` not found | copied from the camera-kernel techpack |
+| diwali/cape dtbs reference missing `.dtbi` | `CONFIG_ARCH_DIWALI`/`CAPE` off - only waipio is wanted |
+| no `.dtbo` emitted | `CONFIG_BUILD_ARM64_DT_OVERLAY=y` |
+
+### The diagnostic initramfs
+
+`src/droidian/initramfs/init` is deliberately minimal: busybox, the three touch
+modules, USB CDC-ECM at 172.16.42.1 and telnetd. It exists to answer one question -
+does `fts_touch_spi` read a real chip id when `xiaomi_touch` and
+`panel_event_notifier` are present? On mainline, with both absent, it always read
+0x00.
+
+### To actually test it
+
+1. `fastboot flash vendor_boot ~/Downloads/vendor_boot.img` - Halium boots the vendor
+   stack, and this partition is currently erased
+2. `fastboot flash boot out/droidian/halium-boot.img`
+3. vbmeta is already disabled on both slots from the mainline work
+4. `telnet 172.16.42.1`, then `dmesg | grep FTS`
+
+This overwrites the working mainline install.

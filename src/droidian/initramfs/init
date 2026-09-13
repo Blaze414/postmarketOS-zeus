@@ -1,0 +1,47 @@
+#!/bin/busybox sh
+# Minimal diagnostic initramfs for the downstream (Halium-style) kernel.
+#
+# Purpose: answer one question - does the vendor FTS driver find its chip id
+# when running on the vendor kernel, with xiaomi_touch and panel_event_notifier
+# present? On mainline it always read 0x00 with those two absent.
+#
+# Brings up USB gadget networking and telnetd so the result can be read from the
+# host at 172.16.42.1, the same address the pmOS initramfs used.
+
+/bin/busybox --install -s /bin
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t configfs configfs /sys/kernel/config 2>/dev/null
+
+echo "### loading touch stack ###" > /dev/kmsg
+insmod /lib/modules/panel_event_notifier.ko 2>&1 > /dev/kmsg
+insmod /lib/modules/xiaomi_touch.ko        2>&1 > /dev/kmsg
+insmod /lib/modules/fts_touch_spi.ko       2>&1 > /dev/kmsg
+echo "### touch stack loaded ###" > /dev/kmsg
+
+# USB gadget: CDC ECM, so the host sees a network interface.
+G=/sys/kernel/config/usb_gadget/g1
+mkdir -p $G 2>/dev/null
+if [ -d $G ]; then
+	echo 0x18d1 > $G/idVendor
+	echo 0x4ee7 > $G/idProduct
+	mkdir -p $G/strings/0x409
+	echo "zeus"            > $G/strings/0x409/manufacturer
+	echo "zeus-touch-test" > $G/strings/0x409/product
+	echo "0123456789"      > $G/strings/0x409/serialnumber
+	mkdir -p $G/functions/ecm.usb0
+	mkdir -p $G/configs/c.1/strings/0x409
+	echo "ecm" > $G/configs/c.1/strings/0x409/configuration
+	ln -s $G/functions/ecm.usb0 $G/configs/c.1/ 2>/dev/null
+	ls /sys/class/udc | head -1 > $G/UDC 2>/dev/null
+	sleep 2
+	ifconfig usb0 172.16.42.1 netmask 255.255.255.0 up 2>/dev/null
+fi
+
+telnetd -l /bin/sh -p 23 2>/dev/null
+
+# Keep the kernel alive and leave a console on the framebuffer.
+echo "### ready: telnet 172.16.42.1 ###" > /dev/kmsg
+exec sh
