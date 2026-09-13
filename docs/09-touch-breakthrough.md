@@ -187,3 +187,79 @@ pointing at the transfer shape rather than at DMA.
 The `spi-gpio` twin is left in the devicetree, disabled. It cost one kernel
 config change and earned the entire diagnosis; it is worth keeping for the next
 time a peripheral looks dead.
+
+## What the Android kernel does that we were not
+
+Comparing the stock devicetree with ours explains both remaining symptoms, and
+neither is about the bus.
+
+Stock's touch node carries a pile of properties we had none of:
+
+```
+fts,touch-deadzone-filter-ver/-hor        fts,support-vsync-mode
+fts,touch-edgezone-filter-ver/-hor        panel = <...>
+fts,touch-cornerzone-filter-ver/-hor1/2   fts,touch-follow-performance
+```
+
+Two of those confirmed decisions already taken: `fts,irq-flags = <0x2008>` is
+exactly the IRQF_ONESHOT value derived earlier, and `spi-max-frequency` on the
+touch node is 12 MHz. Stock also marks the SPI controller `qcom,rt`, which
+mainline's GENI driver does not parse - worth revisiting if latency bites.
+
+### Mistouches: the firmware was already telling us
+
+The zone filter tables are **not parsed by this driver at all**. Downstream
+implements rejection in its separate `xiaomi_touch` layer, which mainline does
+not have. But the interesting part is upstream of that:
+
+```c
+case TOUCH_TYPE_FINGER:
+case TOUCH_TYPE_GLOVE:
+case TOUCH_TYPE_PALM:      /* falls through */
+	tool = MT_TOOL_FINGER;
+```
+
+The firmware classifies palm contacts and reports `TOUCH_TYPE_PALM`, and this
+driver forwards them as ordinary fingertips. On curved glass that is a stream of
+spurious touches. Rejection is now done in the driver: palms are dropped, as are
+contacts starting in the bottom corner boxes, converted from stock's
+`fts,touch-cornerzone-filter-ver` into this driver's super-resolution units.
+Rejected ids are tracked so their motion is dropped too - the enter handler
+doubles as the motion handler - and a contact that turns into a palm after being
+reported gets its slot released so it cannot stick down forever.
+
+Stock's 60px left/right edge bands are deliberately **not** applied: downstream
+treats them as conditional rather than absolute, and blanket suppression would
+eat legitimate edge swipes. `fts,edge-suppress-x` exists to try a band without a
+rebuild, defaulting to 0.
+
+### Touch stopping entirely: nothing told the driver the display came back
+
+`resume_bit` gates every touch report:
+
+```c
+if (!info->resume_bit)
+	goto no_report;
+```
+
+It is only cleared and set by `fts_suspend_work` / `fts_resume_work`, and the
+only things that queue those are a debugfs helper and system PM. There is no
+panel notifier in this fork. So once the display blanked, nothing resumed the
+driver and touch stayed dead.
+
+Mainline's equivalent of Xiaomi's notifier is `drm_panel_follower`: the panel
+calls its followers around its own prepare/unprepare, and
+`drm_panel_add_follower()` resolves the panel through a `panel` phandle on the
+follower's own node - the very property stock has on this touchscreen and we did
+not. Added, along with `panel = <&zeus_panel>`. The driver now logs
+`following panel for display state` at probe.
+
+### Is porting xiaomi_touch itself worth it?
+
+Mostly not. `xiaomi_touch` is a control surface - a misc device and sysfs nodes
+through which Android userspace pushes tuning (the zone tables, tap sensitivity,
+follow performance) down to the firmware. The rejection logic lives in the
+firmware and in Xiaomi's HAL, not in that driver. Porting it without the Android
+userspace that drives it would add an API nothing calls. The behaviour worth
+having is the rejection itself, which is why it went straight into the report
+path instead.

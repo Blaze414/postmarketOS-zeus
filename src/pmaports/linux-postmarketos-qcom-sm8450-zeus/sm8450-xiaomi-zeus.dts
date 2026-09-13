@@ -826,6 +826,14 @@
 		vdd-supply = <&pm8350c_l2>;
 		fts,pwr-reg-name = "avdd";
 		fts,bus-reg-name = "vdd";
+		/*
+		 * resume_bit gates every touch report, and nothing on mainline was
+		 * telling this driver when the display comes back - so touch simply
+		 * stopped after the screen blanked. drm_panel_follower resolves the
+		 * panel through this phandle, which is the same property the stock
+		 * devicetree carries on this node.
+		 */
+		panel = <&zeus_panel>;
 		fts,irq-gpio = <&tlmm 21 IRQ_TYPE_LEVEL_LOW>;
 		fts,reset-gpio-enable;
 		fts,reset-gpio = <&tlmm 20 GPIO_ACTIVE_HIGH>;
@@ -975,7 +983,7 @@
 	vdda-supply = <&pm8350_l6>;
 	status = "okay";
 
-	panel@0 {
+	zeus_panel: panel@0 {
 		compatible = "mdss,l2-38-0c-0a-dsc";
 		reg = <0>;
 
