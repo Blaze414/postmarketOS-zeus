@@ -1037,6 +1037,14 @@
 
 &pcie0 {
 	status = "okay";
+
+	/*
+	 * sm8450-hdk, the reference board for this SoC and the one place this
+	 * WiFi part is known-good, caps the link at gen2. We did not, and the
+	 * controller reported "Phy link never came up" - a WCN6855 that fails to
+	 * train at gen3 looks exactly like that.
+	 */
+	max-link-speed = <2>;
 };
 
 &pcieport0 {
@@ -1297,56 +1305,32 @@
 			&tert_tdm_din_sleep &tert_tdm_dout_sleep>;
 	model = "Xiaomi-12";
 	/*
-	audio-routing = "AMIC1", "Analog Mic1",
-		"AMIC1", "MIC BIAS1",
-		"AMIC2", "Analog Mic2",
-		"AMIC2", "MIC BIAS2",
-		"AMIC3", "Analog Mic3",
-		"AMIC3", "MIC BIAS3",
-		"AMIC4", "Analog Mic4",
-		"AMIC4", "MIC BIAS3",
-		"AMIC5", "Analog Mic5",
-		"AMIC5", "MIC BIAS4",
-		"VA AMIC1", "Analog Mic1",
-		"VA AMIC1", "VA MIC BIAS1",
-		"VA AMIC2", "Analog Mic2",
-		"VA AMIC2", "VA MIC BIAS2",
-		"VA AMIC3", "Analog Mic3",
-		"VA AMIC3", "VA MIC BIAS3",
-		"VA AMIC4", "Analog Mic4",
-		"VA AMIC4", "VA MIC BIAS3",
-		"VA AMIC5", "Analog Mic5",
-		"VA AMIC5", "VA MIC BIAS4",
-		"TX DMIC0", "Digital Mic0",
-		"Digital Mic0", "MIC BIAS3",
-		"TX DMIC1", "Digital Mic1",
-		"Digital Mic1", "MIC BIAS3",
-		"TX DMIC2", "Digital Mic2",
-		"Digital Mic2", "MIC BIAS1",
-		"TX DMIC3", "Digital Mic3",
-		"Digital Mic3", "MIC BIAS1",
-		"IN1_HPHL", "HPHL_OUT",
-		"IN2_HPHR", "HPHR_OUT",
-		"IN3_AUX", "AUX_OUT",
-		"RX_TX DEC0_INP", "TX DEC0 MUX",
-		"RX_TX DEC1_INP", "TX DEC1 MUX",
-		"RX_TX DEC2_INP", "TX DEC2 MUX",
-		"RX_TX DEC3_INP", "TX DEC3 MUX",
-		"TX SWR_INPUT", "WCD_TX_OUTPUT",
-		"VA SWR_INPUT", "VA_SWR_CLK",
-		"VA SWR_INPUT", "WCD_TX_OUTPUT",
-		"VA_AIF1 CAP", "VA_SWR_CLK",
-		"VA_AIF2 CAP", "VA_SWR_CLK",
-		"VA_AIF3 CAP", "VA_SWR_CLK",
-		"VA DMIC0", "Digital Mic0",
-		"VA DMIC1", "Digital Mic1",
-		"VA DMIC2", "Digital Mic2",
-		"VA DMIC3", "Digital Mic3",
-		"Digital Mic0", "VA MIC BIAS3",
-		"Digital Mic1", "VA MIC BIAS3",
-		"Digital Mic2", "VA MIC BIAS1",
-		"Digital Mic3", "VA MIC BIAS1";
-	*/
+	 * Without any routing DAPM has no path from the codec DAIs to anything
+	 * physical, so the card exists and plays silence. These names are taken
+	 * from sm8450-hdk, which drives the same wcd938x and the same lpass
+	 * macros; its two WSA speaker routes are dropped because zeus has four
+	 * CS35L41 amps on tertiary TDM instead, and those wire themselves up
+	 * through the codec driver's own internal routes.
+	 */
+	audio-routing = "IN1_HPHL", "HPHL_OUT",
+			"IN2_HPHR", "HPHR_OUT",
+			"AMIC1", "MIC BIAS1",
+			"AMIC2", "MIC BIAS2",
+			"AMIC3", "MIC BIAS3",
+			"AMIC4", "MIC BIAS3",
+			"AMIC5", "MIC BIAS4",
+			"VA DMIC0", "MIC BIAS3",
+			"VA DMIC1", "MIC BIAS3",
+			"VA DMIC2", "MIC BIAS1",
+			"VA DMIC3", "MIC BIAS1",
+			"TX DMIC0", "MIC BIAS3",
+			"TX DMIC1", "MIC BIAS3",
+			"TX DMIC2", "MIC BIAS1",
+			"TX DMIC3", "MIC BIAS1",
+			"TX SWR_INPUT0", "ADC1_OUTPUT",
+			"TX SWR_INPUT1", "ADC2_OUTPUT",
+			"TX SWR_INPUT0", "ADC3_OUTPUT",
+			"TX SWR_INPUT1", "ADC4_OUTPUT";
 
 	wcd-playback-dai-link {
 		link-name = "WCD Playback";

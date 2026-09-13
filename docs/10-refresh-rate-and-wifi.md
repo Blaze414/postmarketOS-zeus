@@ -144,3 +144,74 @@ differing significantly from other Qualcomm SoCs, and there is recent upstream
 work on PCIe0 PHY support for SM8475, the binned variant of this SoC. That is the
 area to look at next, along with making the host controller defer to the
 pwrctrl device rather than training the link before the endpoint is powered.
+
+## Audio: the card is real, the topology is not ours
+
+With the topology linked the card registers, but playback fails:
+
+```
+MultiMedia1 Playback: ASoC: no backend DAIs enabled for MultiMedia1 Playback,
+    possibly missing ALSA mixer-based routing or UCM profile
+qcom-apm gprsvc:service:2:1: CMD timeout for [1001021] opcode
+```
+
+Two separate problems, and the second is the hard one.
+
+**Routing.** On a Qualcomm ADSP card the frontend is not wired to a backend by the
+devicetree - that link is a runtime mixer control, normally set by a UCM profile,
+and no UCM profile exists for this card. `RX_CODEC_DMA_RX_0 Audio Mixer
+MultiMedia1` is the control, and setting it does connect the path. The
+devicetree's `audio-routing` was also entirely commented out, so DAPM had no
+route from the codec DAIs to anything physical; it is now populated with the
+names sm8450-hdk uses for the same wcd938x and the same lpass macros.
+
+**The topology has no TDM.** Listing every backend mixer the loaded topology
+provides gives exactly three:
+
+```
+PRIMARY_MI2S_RX     RX_CODEC_DMA_RX_0     WSA_CODEC_DMA_RX_0
+```
+
+and `amixer controls | grep -ci tdm` returns **0**. Zeus drives its four CS35L41
+amps from `TERTIARY_TDM_RX_0`. That backend does not exist in the HDK topology,
+so the ADSP has no graph that reaches the speakers and no devicetree change can
+create one. The HDK is a development board with WSA speakers; its topology was
+never going to carry a phone's TDM amp path.
+
+The APM command timeout on top of that says the ADSP is not accepting these
+graphs at all - zeus runs its own `adsp.mbn`, and the HDK topology was built
+against the HDK's firmware.
+
+**Speaker audio needs a zeus topology.** The HDK file was a reasonable way to get
+the card to exist and it did that, but it cannot be the destination.
+
+## WiFi: what has been eliminated
+
+| Checked | Result |
+|---|---|
+| `vddpmumx` / `vddpmucx` supplies | were missing, **now fixed**, warnings gone |
+| PHY driver support | `sm8450_qmp_gen3x1_pcie` init tables present |
+| PERST / WAKE gpios | sm8450.dtsi has gpio94/96, matching stock exactly |
+| Link speed | capped at gen2 as sm8450-hdk does - no change |
+| `pci-pwrctrl-pwrseq` | bound to `1c00000.pcie:pcie@0:wifi@0` |
+| ath11k firmware | WCN6855 present in linux-firmware |
+| GPIO numbers | 80/81 match stock's `wlan-en-gpio` / `bt-en-gpio` |
+
+Forcing a link retrain by setting the Retrain Link bit in the root port's Link
+Control register, long after boot with everything powered, changes nothing:
+
+```
+before: link status 0x1011  speed=1 width=1 active=False
+after:  link status 0x1011  speed=1 width=1 active=False
+```
+
+`active=False` is Data Link Layer Link Active staying clear. The endpoint is not
+answering at all, which also weakens the earlier ordering theory - if it were
+purely a question of powering the chip before training, a retrain now would
+succeed.
+
+Bluetooth working proves the PMU rails and the chip itself are fine, so what is
+left is specific to the WLAN side: whether the pwrseq's wlan target actually
+asserts gpio80, and whether this fork's PCIe0 support for sm8450 is complete.
+Recent upstream work on PCIe0 PHY for SM8475, the binned variant of this SoC, is
+the thread to pull.
