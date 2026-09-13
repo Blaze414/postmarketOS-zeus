@@ -297,3 +297,61 @@ than this device's factory MAC (`4c:e0:db:31:f3:d8`, in
 `/persist/qca6490/wlan_mac.bin`). ath11k takes it from board data/OTP, which is
 evidently not provisioned for it here. NetworkManager randomises the in-use
 address anyway, so this only matters for MAC filtering or DHCP reservations.
+
+## On-screen keyboard: skipped by autostart
+
+stevia was installed (`stevia-0.57.0`, plus `postmarketos-ui-phosh-default-osk`),
+`screen-keyboard-enabled` was true for the session, and the binary ran perfectly
+when started by hand inside the session. It simply never started on its own.
+
+The reason is one line in `/usr/share/applications/sm.puri.OSK0.desktop`:
+
+```
+OnlyShowIn=Phosh;
+```
+
+and the session reports `XDG_CURRENT_DESKTOP=GNOME`, because autologin runs
+`phosh-session` under `gnome-session`. Autostart therefore skipped the entry
+entirely, so tapping a text field produced nothing.
+
+Copied into `/etc/xdg/autostart/` with `OnlyShowIn` (and
+`X-GNOME-HiddenUnderSystemd`) removed, from the device package's post-install.
+The keyboard now starts with the session and survives a reboot.
+
+## Audio: still blocked on the ADSP handshake
+
+The first command the driver sends the DSP never gets an answer:
+
+```
+qcom-apm gprsvc:service:2:1: CMD timeout for [1001021] opcode
+```
+
+`0x01001021` is `APM_CMD_GET_SPF_STATE` - the opening handshake with the ADSP's
+Signal Processing Framework. Nothing downstream of it can work, which is why
+playback returns `-EIO` regardless of routing or topology.
+
+Things tried, none of which changed it:
+
+* **tqftpserv** - was in no runlevel at all (cupid's post-install adds it). Now
+  enabled and running.
+* **pd-mapper** - built from pmaports and installed, but it exits with
+  `no pd maps available`. Enabling EROFS in the kernel finally allowed the
+  Android vendor partition to be mounted, and there are **no `.jsn` files
+  anywhere on it**, so this device does not use PD maps and pd-mapper is a dead
+  end here.
+* **DSP firmware** - the `dsp` partition holds the ADSP's audio modules
+  (`*_module.so.1`) and fastrpc shells. Extracted and placed at `/vendor/dsp`,
+  the Android path, in case the DSP requests them over tqftpserv. No change.
+
+Also confirmed while looking: mainline's audioreach stack has **no TDM support
+at all**. `audioreach.c`'s hardware-endpoint switch handles only I2S, CODEC_DMA,
+DisplayPort and shared memory; TDM exists solely in the older q6afe/APR stack
+that this SoC does not use. So even past the handshake, zeus's four CS35L41 amps
+on `TERTIARY_TDM_RX_0` would need TDM endpoint support written in the kernel.
+
+Useful find for later: the vendor partition carries the amps' own DSP firmware -
+`BH/BL/TH/TL-cs35l41-dsp1-spk-prot.bin` and `-cali.bin` - which the CS35L41
+driver will want for speaker protection once there is a working path to them.
+
+Audio is therefore two problems deep: an ADSP that does not answer, and behind
+it a driver stack with no TDM. Neither is a devicetree fix.

@@ -24,3 +24,17 @@ TPLG=/lib/firmware/qcom/sm8450
 if [ -e "$TPLG/SM8450-HDK-tplg.bin.zst" ] && [ ! -e "$TPLG/Xiaomi-12-tplg.bin.zst" ]; then
 	ln -sf SM8450-HDK-tplg.bin.zst "$TPLG/Xiaomi-12-tplg.bin.zst"
 fi
+
+# On-screen keyboard.
+#
+# stevia ships /usr/share/applications/sm.puri.OSK0.desktop with
+# "OnlyShowIn=Phosh", but this session runs gnome-session and reports
+# XDG_CURRENT_DESKTOP=GNOME, so autostart skipped it and the keyboard never
+# appeared when a text field was focused. Copy it into the autostart directory
+# with that restriction dropped.
+OSK=/usr/share/applications/sm.puri.OSK0.desktop
+if [ -e "$OSK" ]; then
+	mkdir -p /etc/xdg/autostart
+	sed -e '/^OnlyShowIn=/d' -e '/^X-GNOME-HiddenUnderSystemd=/d' \
+		"$OSK" > /etc/xdg/autostart/sm.puri.OSK0.desktop
+fi
