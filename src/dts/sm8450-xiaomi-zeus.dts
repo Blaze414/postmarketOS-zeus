@@ -852,31 +852,80 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	cs35l41_b: speaker-amp@40 {
+	/*
+	 * zeus has FOUR cs35l41 amps, not cupid's two: bottom pair BH/BL and top
+	 * pair TH/TL. Read out of this device's own fdt, which also names the
+	 * calibration blobs BH-cs35l41-dsp1-spk-cali.bin and BL-... in
+	 * /vendor/firmware.
+	 *
+	 * The inherited cupid nodes were wrong twice over: only two amps, and both
+	 * declared reset-gpios = <&tlmm 1>, which on zeus is TL's reset line. Note
+	 * cupid's two amps use irq 118 and 63, i.e. zeus's BL and TH - a mismatched
+	 * subset rather than a subset.
+	 *
+	 *   addr  prefix  reset      irq
+	 *   0x40  BH      tlmm 120   117
+	 *   0x41  BL      tlmm 9     118
+	 *   0x42  TH      tlmm 3     63
+	 *   0x43  TL      tlmm 1     88
+	 *
+	 * Pinctrl is intentionally omitted: gpiolib muxes these to GPIO on request
+	 * and the tlmm irqchip handles the interrupt lines, whereas cupid's
+	 * cirrus_* states describe the wrong pins for this board.
+	 */
+	cs35l41_bh: speaker-amp@40 {
 		compatible = "cirrus,cs35l41";
 		reg = <0x40>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <118 0x2008>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&cirrus_reset_default_0 &cirrus_irq_default_0>;
-		reset-gpios = <&tlmm 1 GPIO_ACTIVE_HIGH>;
+		interrupts = <117 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 120 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,gpio2-src-select = <4>;
 		cirrus,gpio2-output-enable;
 		cirrus,asp-sdout-hiz = <3>;
-		sound-name-prefix = "SpkrRight";
+		sound-name-prefix = "BH";
 		#sound-dai-cells = <1>;
 	};
 
-	cs35l41_t: speaker-amp@42 {
+	cs35l41_bl: speaker-amp@41 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <118 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 9 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,gpio2-src-select = <4>;
+		cirrus,gpio2-output-enable;
+		cirrus,asp-sdout-hiz = <3>;
+		sound-name-prefix = "BL";
+		#sound-dai-cells = <1>;
+	};
+
+	cs35l41_th: speaker-amp@42 {
 		compatible = "cirrus,cs35l41";
 		reg = <0x42>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <63 0x2008>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&cirrus_irq_default_1>;
+		interrupts = <63 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 3 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,gpio2-src-select = <4>;
+		cirrus,gpio2-output-enable;
+		cirrus,asp-sdout-hiz = <3>;
+		sound-name-prefix = "TH";
+		#sound-dai-cells = <1>;
+	};
+
+	cs35l41_tl: speaker-amp@43 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x43>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <88 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 1 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
 		cirrus,boost-ind-nanohenry = <1000>;
@@ -884,7 +933,7 @@
 		cirrus,gpio2-src-select = <4>;
 		cirrus,gpio2-output-enable;
 		cirrus,asp-sdout-hiz = <3>;
-		sound-name-prefix = "SpkrLeft";
+		sound-name-prefix = "TL";
 		#sound-dai-cells = <1>;
 	};
 };
@@ -1290,7 +1339,8 @@
 		};
 
 		codec {
-			sound-dai = <&cs35l41_t 0>, <&cs35l41_b 0>;
+			sound-dai = <&cs35l41_bh 0>, <&cs35l41_bl 0>,
+				    <&cs35l41_th 0>, <&cs35l41_tl 0>;
 		};
 
 		platform {
