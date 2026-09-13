@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=23
+pkgrel=24
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -118,6 +118,6 @@ a6b779d46efa58f3f5df741d7a5c8287864618a83da03d04143783dd156f2e7913c8a35db9a86ab3
 ff3fae64733f48dc97748d17fa4a159a5dfe136fab80ab7373bb8d65446c747e5eae3244e76143cb24e7147ea9702bed251a7433d09d8b0be95f410a47ccdfd3  panel-l2-38-0c-0a-dsc.c
 bfde6fad3117dec055efe88a6a60c2393b3f5297e5ffacc743ae519e0100ed296d9546b8e6b86d9a75bbeb53676946a05e9f6cec2e95f3f8e0a7729c325b9664  0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c38412cf36e93c4cb20d257969f3b3ac5bb89b262d746503f1d7a  0002-fts-single-full-duplex-transfer-for-geni.patch
-badeb9a25596799a7661f441ba5f32cf18f7c6c2afed686993e6821a07387ed060a7f5355729cb488f28fe256b5a438124368c0610597ce7913ae5d604d82990  0003-fts-palm-rejection-and-panel-follower.patch
+6d20f8cf621cb38bfc00bdd041d5baa191320b8ab8dfa82ec0a3e9a7749d373f903f4ec1a91da72aa7cbb83407c0cc8aa2648590ea3a067df16699e3a4a53033  0003-fts-palm-rejection-and-panel-follower.patch
 3d4fa260d50072d20a946efec552f9f63f88f83040d17b44d6bb2daf05b933de05e6a4df583487e18848454e47cfcd57130b16faf86752b2dde5dee43212d1ff  0004-pcie-qcom-retry-link-training-with-endpoint-reset.patch
 "

@@ -380,3 +380,53 @@ The devicetree changes are kept, because powering the endpoint early is still th
 right description of this board and means the retry is rarely needed. Across
 reboots the link now comes up on the first attempt at ~0.4-0.55 s, `wlan0`
 appears every time, and scanning returns networks.
+
+## Corner touches: a regression of my own making
+
+The bottom-left and bottom-right keys of the on-screen keyboard did not respond.
+That was the palm-rejection patch: it also suppressed contacts inside two corner
+boxes, converted from stock's `fts,touch-cornerzone-filter-ver`.
+
+When that went in, coordinates were still being decoded in the wrong resolution,
+so every touch landed squashed into the top-left and the corner boxes never
+triggered - the `rejected id` count stayed at zero and I read that as the patch
+being inert. Fixing the super-resolution decode made coordinates correct, and
+those boxes then covered real screen: the bottom corners of the keyboard.
+
+The geometric zones are removed. Palm rejection stays, because that is the
+firmware classifying the contact rather than a bounding box guessing. Downstream
+applies its zone tables through firmware tuning with far more context than a
+rectangle, and approximating that here does more harm than good.
+
+## Notch / display cutout
+
+Phosh does support cutouts - `gm_display_panel_get_cutouts` in phosh, an
+`xx-cutouts-v1` protocol in phoc, and log strings like *"Notch overlaps left: %d,
+right: %d"* and *"No clock placement found to fully avoid notch"*.
+
+The data comes from **gmobile**, keyed on the devicetree `compatible` - here
+`xiaomi,zeus` - as a JSON panel description:
+
+```json
+{"name":"Xiaomi POCO F1","x-res":1080,"y-res":2246,"border-radius":104,
+ "width":68,"height":145,
+ "cutouts":[{"name":"notch","path":"M 834,0 c -10.516,0 ..."}]}
+```
+
+gmobile 0.7.3 loads these with `g_resources_lookup_data()` - **compiled-in
+GResource only**. `/usr/share/gmobile/devices/` exists but is not a search path,
+so a file dropped there is ignored; adding zeus means rebuilding gmobile with the
+definition included.
+
+`src/gmobile/xiaomi,zeus.json` holds a first cut, but its geometry is an
+**estimate**: a 90px-diameter punch-hole centred at (720, 95), derived from the
+1440x3200 panel over 70x156mm (20.57 px/mm) and the 12 Pro's roughly 4mm camera
+aperture. Android's real value lives in `framework-res.apk`'s
+`config_mainBuiltInDisplayCutout`, which is compressed inside the APK and needs
+Android resource tooling to extract - `strings` on the partitions does not reach
+it.
+
+Shipping a guessed cutout is worse than shipping none: phosh would route the
+clock and status icons around the wrong region. So this is prepared but not
+built in, pending either the real figure from framework-res or one visual check
+against the hardware.

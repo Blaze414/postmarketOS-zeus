@@ -1,5 +1,5 @@
 diff --git a/drivers/input/touchscreen/fts_spi/fts.c b/drivers/input/touchscreen/fts_spi/fts.c
-index aa6dd5dbb..32ba68218 100644
+index aa6dd5dbb..be69fdb57 100644
 --- a/drivers/input/touchscreen/fts_spi/fts.c
 +++ b/drivers/input/touchscreen/fts_spi/fts.c
 @@ -129,6 +129,9 @@ extern int power_supply_is_system_supplied(void);
@@ -20,54 +20,37 @@ index aa6dd5dbb..32ba68218 100644
  	info->width_major = 0;
  	info->width_minor = 0;
  	info->orientation = 0;
-@@ -2353,6 +2357,46 @@ static void fts_nop_event_handler(struct fts_ts_info *info,
+@@ -2353,6 +2357,29 @@ static void fts_nop_event_handler(struct fts_ts_info *info,
  * Event handler for enter and motion events (EVT_ID_ENTER_POINT, EVT_ID_MOTION_POINT )
  * report to the linux input system touches with their coordinated and additional informations
  */
 +/*
-+ * Palm and corner rejection.
++ * Palm rejection.
 + *
 + * The firmware already classifies a contact as TOUCH_TYPE_PALM, but this driver
 + * falls it through to MT_TOOL_FINGER and reports it like any fingertip. On a
-+ * phone with curved glass that is a stream of spurious touches. Downstream never
-+ * had to handle it here because Xiaomi does the rejection in its separate
-+ * xiaomi_touch layer, together with the fts,touch-{dead,edge,corner}zone-filter
-+ * tables - none of which exist on mainline, and none of which this driver even
-+ * parses.
++ * phone with curved glass that is a stream of spurious touches. Downstream does
++ * this rejection in its separate xiaomi_touch layer, which mainline does not
++ * have.
 + *
-+ * The corner boxes below are the stock fts,touch-cornerzone-filter-ver entries
-+ * converted from panel pixels to the super-resolution units this driver reports
-+ * in (x_max 14400 for 1440px, y_max 32000 for 3200px, so x10): bottom-left
-+ * (0,2799)-(250,3199) and bottom-right (1189,2799)-(1439,3199). That is where a
-+ * hand resting on the phone actually lands.
-+ *
-+ * The stock 60px left/right edge bands are deliberately NOT applied. Downstream
-+ * treats those as conditional rather than absolute, and suppressing them outright
-+ * would eat legitimate edge swipes. fts,edge-suppress-x exists to try a band
-+ * without a rebuild; it defaults to 0, meaning off.
++ * The geometric corner zones that used to live here - stock's
++ * fts,touch-cornerzone-filter-ver, converted to this driver's units - are gone.
++ * They were added while coordinates were still being decoded in the wrong
++ * resolution, so every touch landed squashed into the top-left and the zones
++ * never triggered; they logged zero rejections and looked harmless. Once the
++ * super-resolution decode was fixed and coordinates became correct, those boxes
++ * started covering real screen and ate the bottom-left and bottom-right keys of
++ * the on-screen keyboard. Downstream applies those tables through firmware
++ * tuning with far more context than a bounding box, and nothing here reproduces
++ * that, so the honest thing is not to approximate it.
 + */
-+#define FTS_CORNER_Y_MIN	27990
-+#define FTS_CORNER_X_LEFT	2500
-+#define FTS_CORNER_X_RIGHT	11890
 +
-+static bool fts_in_reject_zone(struct fts_ts_info *info, int x, int y)
-+{
-+	int edge = info->board->edge_suppress_x;
-+
-+	if (y >= FTS_CORNER_Y_MIN &&
-+	    (x <= FTS_CORNER_X_LEFT || x >= FTS_CORNER_X_RIGHT))
-+		return true;
-+
-+	if (edge > 0 && (x <= edge || x >= info->board->x_max - edge))
-+		return true;
-+
-+	return false;
-+}
++static unsigned long fts_reject_id;
 +
  static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
  					    unsigned char *event)
  {
-@@ -2398,6 +2442,32 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
+@@ -2398,6 +2425,32 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
  		x = info->board->x_max - x;
  	if (info->board->swap_y)
  		y = info->board->y_max - y;
@@ -77,7 +60,7 @@ index aa6dd5dbb..32ba68218 100644
 +	 * motion handler - and a contact that turns into a palm after being
 +	 * reported gets its slot released so it cannot stick down forever.
 +	 */
-+	if (touchType == TOUCH_TYPE_PALM || fts_in_reject_zone(info, x, y)) {
++	if (touchType == TOUCH_TYPE_PALM) {
 +		if (!test_bit(touchId, &fts_reject_id)) {
 +			__set_bit(touchId, &fts_reject_id);
 +			if (test_bit(touchId, &info->touch_id)) {
@@ -100,7 +83,7 @@ index aa6dd5dbb..32ba68218 100644
  	input_mt_slot(info->input_dev, touchId);
  	switch (touchType) {
  	case TOUCH_TYPE_FINGER:
-@@ -2479,6 +2549,14 @@ static void fts_leave_pointer_event_handler(struct fts_ts_info *info,
+@@ -2479,6 +2532,14 @@ static void fts_leave_pointer_event_handler(struct fts_ts_info *info,
  	touchType = event[1] & 0x0F;
  	touchId = (event[1] & 0xF0) >> 4;
  
@@ -115,7 +98,7 @@ index aa6dd5dbb..32ba68218 100644
  	input_mt_slot(info->input_dev, touchId);
  	switch (touchType) {
  	case TOUCH_TYPE_FINGER:
-@@ -3655,6 +3733,43 @@ static int fts_mode_handler(struct fts_ts_info *info, int force)
+@@ -3655,6 +3716,43 @@ static int fts_mode_handler(struct fts_ts_info *info, int force)
  /**
   * Resume work function which perform a system reset, clean all the touches from the linux input system and prepare the ground for enabling the sensing
   */
@@ -159,7 +142,7 @@ index aa6dd5dbb..32ba68218 100644
  static void fts_resume_work(struct work_struct *work)
  {
  	struct fts_ts_info *info;
-@@ -4043,6 +4158,28 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
+@@ -4043,6 +4141,24 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
  	bdata->support_vsync_mode =
  		of_property_read_bool(np, "fts,support-vsync-mode");
  
@@ -180,15 +163,11 @@ index aa6dd5dbb..32ba68218 100644
 +	logError(1, "%s super resolution: %u\n", tag,
 +		 bdata->support_super_resolution);
 +
-+	/* 0 = off. See fts_in_reject_zone(). */
-+	if (of_property_read_u32(np, "fts,edge-suppress-x",
-+				 &bdata->edge_suppress_x))
-+		bdata->edge_suppress_x = 0;
 +
  	retval = of_property_read_u32(np, "fts,config-array-size",
  				      (u32 *)&bdata->config_array_size);
  
-@@ -4878,6 +5015,24 @@ static int fts_probe(struct spi_device *client)
+@@ -4878,6 +4994,24 @@ static int fts_probe(struct spi_device *client)
  		goto ProbeErrorExit_6;
  	}
  	info->vsync_fps = 120;
@@ -214,7 +193,7 @@ index aa6dd5dbb..32ba68218 100644
  	logError(1, "%s %s create secure touch file...\n", tag, __func__);
  	error = fts_secure_init(info);
 diff --git a/drivers/input/touchscreen/fts_spi/fts.h b/drivers/input/touchscreen/fts_spi/fts.h
-index 9f796d420..812de9c72 100644
+index 9f796d420..b1f24c135 100644
 --- a/drivers/input/touchscreen/fts_spi/fts.h
 +++ b/drivers/input/touchscreen/fts_spi/fts.h
 @@ -1,3 +1,4 @@
@@ -222,15 +201,7 @@ index 9f796d420..812de9c72 100644
  /*
   * fts.c
   *
-@@ -184,6 +185,7 @@ struct fts_hw_platform_data {
- 	bool swap_y;
- 	u32 support_super_resolution;
- 	bool support_vsync_mode;
-+	u32 edge_suppress_x;
- };
- 
- /*
-@@ -273,6 +275,7 @@ struct fts_ts_info {
+@@ -273,6 +274,7 @@ struct fts_ts_info {
  	struct work_struct work;
  	struct work_struct suspend_work;
  	struct work_struct resume_work;
