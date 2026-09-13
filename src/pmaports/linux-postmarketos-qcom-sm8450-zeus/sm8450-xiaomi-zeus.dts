@@ -813,6 +813,18 @@
 	clock-frequency = <50000000>;
 	status = "okay";
 
+	/*
+	 * Force the GENI controller into FIFO mode by taking away its GPI DMA
+	 * channels. Every register read through GENI came back as exactly 0x00 -
+	 * never garbage, never a partial value - which is what a read whose RX
+	 * data is never captured looks like, rather than a chip that is not
+	 * answering. Bitbanging the same pins proved the chip answers fine, so
+	 * the fault is on the controller side, and the DMA path is the part of
+	 * it this node can switch off from the devicetree.
+	 */
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+
 	touchscreen@0 {
 		compatible = "st,spi";
 		reg = <0x0>;

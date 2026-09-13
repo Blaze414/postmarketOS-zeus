@@ -85,3 +85,53 @@ The bitbanged bus is a diagnostic, not a destination - it burns CPU and is far
 slower than the hardware controller. The real fix is now well-posed and narrow:
 make GENI produce what this chip wants. That is a much better place to be than
 eleven disproven hypotheses about a chip that turned out to be healthy all along.
+
+## Follow-up: what the bitbanged bus actually behaves like in use
+
+With the bitbanged bus in a real session: **scrolling works**, taps mostly do
+not register, ghost touches happen, and the display tears while scrolling.
+
+Those are one symptom, not three. spi-gpio can be preempted in the middle of a
+transfer, which stretches the CS-low window past what the controller tolerates;
+it aborts the transaction and raises an error. The result is a touch stream with
+holes in it. Motion survives that - hence working scroll - but a tap needs a
+clean down/up pair, and a lost "leave point" leaves a finger logically down
+forever, so the tap never becomes a click. The `F3 12` flood at ~50 ms is the
+chip complaining about exactly these aborted transactions.
+
+Bitbang proved the chip is healthy. It cannot be the production bus.
+
+### Two display theories tested and dropped
+
+**Log spam causing the tearing.** Console loglevel is 1, so the error flood never
+reaches a console, and ~20 printk/s to the ring buffer is nowhere near enough to
+stall a compositor.
+
+**The panel being driven as video mode.** The stock cmdline names the panel
+`qcom,mdss_dsi_l2_38_0c_0a_dsc_cmd`, so it is command mode, and a command-mode
+panel driven as video mode would tear exactly like this. It is not: the panel
+driver sets `MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM` and never
+`MIPI_DSI_MODE_VIDEO`. TE is wired correctly too - `te-gpios = <&tlmm 86>`
+matches stock's `qcom,platform-te-gpio` (0x56 = 86), and pin 86 is live as
+`function mdp_vsync` claimed by `ae94000.dsi.0`.
+
+### GENI: forcing FIFO mode changes the failure
+
+Every GENI read returned exactly 0x00 - never garbage, never partial - which is
+what a read whose RX is never captured looks like. sm8450's `spi4` declares GPI
+DMA channels, so deleting `dmas`/`dma-names` forces the FIFO path.
+
+It changes the failure, which means the DMA path is implicated:
+
+| Path | `fts_system_reset` |
+|---|---|
+| GENI with GPI DMA | `0x80000007` ERROR_TIMEOUT - reads silently return 0x00 |
+| GENI FIFO only | `0x80000002` ERROR_BUS_R - the read **fails outright** |
+
+An explicit bus error is far easier to chase than silent zeros, and it says the
+transfer is being rejected rather than quietly producing nothing. No GENI message
+accompanies it, so the next step is instrumenting `spi-geni-qcom.c` to see what
+`spi_sync` is actually returning and on which transfer shape.
+
+The device is left on the bitbanged bus, since that is the only configuration
+where touch works at all.
