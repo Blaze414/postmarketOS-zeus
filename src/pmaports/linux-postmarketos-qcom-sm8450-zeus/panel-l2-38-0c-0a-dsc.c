@@ -352,8 +352,15 @@ static int l2_38_0c_0a_dsc_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_BURST |
-			  MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
+	/*
+	 * Command mode, NOT video mode. The generator emits
+	 * MIPI_DSI_MODE_VIDEO_BURST and cupid's driver carries it too, but zeus's
+	 * downstream node is dsi_cmd_mode with te-using-te-pin, mdp-trigger =
+	 * "none" and dma-trigger = "trigger_sw". With the video flag set, the DPU
+	 * pushes frames the panel never acknowledges and every kickoff ends in
+	 * "failed wait_for_idle ... -110" / "frame done timeout".
+	 */
+	dsi->mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM;
 
 	drm_panel_init(&ctx->panel, dev, &l2_38_0c_0a_dsc_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

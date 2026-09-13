@@ -48,6 +48,19 @@
 	compatible = "xiaomi,zeus", "qcom,sm8450";
 	chassis-type = "handset";
 
+	/*
+	 * Qualcomm's ABL bootloader picks a devicetree by matching the SoC and
+	 * board IDs it reads out of SMEM against qcom,msm-id / qcom,board-id in
+	 * the DTB. Mainline devicetrees do not carry these, so ABL finds no
+	 * suitable devicetree, refuses to boot and resets - a bootloop with no
+	 * output, before the kernel ever runs. Copied verbatim from this device's
+	 * own stock devicetree.
+	 *
+	 * 0x1c9 = 457 (SM8450), 0x1e2 = 482; each pair is (msm-id, soc revision).
+	 */
+	qcom,msm-id = <0x1c9 0x20000 0x1e2 0x20000 0x1c9 0x10000 0x1e2 0x10000>;
+	qcom,board-id = <0x10008 0x00>;
+
 	aliases {
 		hsuart0 = &uart20;
 		serial0 = &uart7;
@@ -456,6 +469,14 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			/*
+			 * Touchscreen bus/IO rail (fts,bus-reg-name = "vdd"). The FTS
+			 * driver never took a reference on it - it sat disabled with
+			 * num_users=0 - so every SPI read of the chip id came back 0x0
+			 * while avdd was happily powered at 3.304V. Keep it on.
+			 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		pm8350c_l3: ldo3 {
@@ -722,8 +743,18 @@
 		compatible = "qcom,pm8008";
 		reg = <0xc>;
 
-		interrupts-extended = <&tlmm 11 IRQ_TYPE_EDGE_RISING>;
+		/*
+		 * tlmm 11 is the chip enable, not an interrupt: downstream drives it
+		 * with pinctrl (function = "gpio", output-high) and has no irq line
+		 * for this PMIC. Mainline models that as reset-gpios, which the driver
+		 * requests as GPIOD_OUT_LOW and then releases. Wiring it as an
+		 * interrupt instead left the chip held in reset, so every register read
+		 * failed with -ENXIO ("failed to read step rate: -6") and the
+		 * touchscreen's avdd never appeared.
+		 */
+		reset-gpios = <&tlmm 11 GPIO_ACTIVE_LOW>;
 
+		/* vdd_l3_l4 resolves to pm8350c-bob in the downstream tree. */
 		vdd-l3-l4-supply = <&vreg_bob>;
 
 		interrupt-controller;
@@ -732,8 +763,23 @@
 		regulators {
 			vreg_l3j: ldo3 {
 				regulator-name = "vreg_l3j";
-				regulator-min-microvolt = <3300000>;
+				/*
+				 * The pm8008 PLDO range is 1504000 + n * 8000 (n <= 237).
+				 * 3300000 is not on a step, so asking for it makes the
+				 * regulator core reject registration with -EINVAL.
+				 * 3304000 is selector 225 exactly, and is what downstream's
+				 * 3303999 rounds to.
+				 */
+				regulator-min-microvolt = <3304000>;
 				regulator-max-microvolt = <3304000>;
+				/*
+				 * The FTS driver brings the touch controller up and reads its
+				 * chip id immediately; with the rail only enabled on demand it
+				 * read 0x0 ("read chip error,no panel"). Keep avdd on so the
+				 * controller is powered before the first SPI transaction.
+				 */
+				regulator-always-on;
+				regulator-boot-on;
 			};
 		};
 	};

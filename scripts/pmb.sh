@@ -97,19 +97,16 @@ echo "==> building packages"
 fi
 
 echo "==> installing rootfs"
-# NOT --split. zeus has no spare partition for a pmOS_boot filesystem, so the
-# combined image is what we want: it carries its own partition table with both
-# pmOS_boot and pmOS_root inside, and gets flashed whole to userdata. The Android
-# boot.img (kernel + initramfs) goes to the boot partition separately, and its
-# cmdline finds both filesystems by UUID:
-#   pmos_boot_uuid=... pmos_root_uuid=...
-# --split instead emits bare ext2/ext4 filesystem images intended for devices
-# that have two real partitions to put them in. Flashing those here would leave
-# the initramfs unable to find either UUID.
+# --split IS correct for this device, despite the boot.img cmdline naming a
+# pmos_boot_uuid. Flashing the combined image to userdata does not work: it is a
+# disk image with its own partition table, and Linux does not parse a partition
+# table nested inside a partition, so the initramfs finds no filesystem at all
+# (blkid returns nothing). The split root image is a bare filesystem labelled
+# pmOS_root, which is what gets flashed to userdata.
 #
 # f2fs rather than ext4: zeus has UFS 3.1 flash, and f2fs is log-structured with
 # flash-aware GC. CONFIG_F2FS_FS=y is already in the sm8450 config fragment.
-"${PMB[@]}" -y install --no-fde --filesystem f2fs --password "$DUMMY_PASSWORD"
+"${PMB[@]}" -y install --split --no-fde --filesystem f2fs --password "$DUMMY_PASSWORD"
 
 # pmbootstrap export writes symlinks into the container volume, which dangle on
 # the macOS side, and it refuses to overwrite an existing file. Copy the real
@@ -120,8 +117,13 @@ sudo rm -rf "$OUT"; mkdir -p "$OUT"
 ROOTFS=/src/pmb-work/chroot_rootfs_xiaomi-zeus
 sudo cp "$ROOTFS"/boot/boot.img "$OUT"/
 sudo cp "$ROOTFS"/boot/sm8450-xiaomi-zeus.dtb "$OUT"/
-sudo cp /src/pmb-work/chroot_native/home/pmos/rootfs/xiaomi-zeus.img "$OUT"/
+sudo cp /src/pmb-work/chroot_native/home/pmos/rootfs/xiaomi-zeus-*.img "$OUT"/
 sudo chown -R "$(id -u):$(id -g)" "$OUT"
+
+# The export step wipes $OUT, so regenerate the vbmeta here or it disappears on
+# every rebuild. zeus ships with "Verity mode: true" and rejects an unsigned
+# kernel outright; this vbmeta turns AVB off. It must go to BOTH slots.
+python3 /work/scripts/make-vbmeta.py "$OUT"/vbmeta-disabled.img
 
 echo "==> firmware present in the rootfs?"
 sudo ls "$ROOTFS"/lib/firmware/qcom/sm8450/zeus/ 2>/dev/null || echo "  !! MISSING"
