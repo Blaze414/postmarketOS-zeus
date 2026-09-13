@@ -1,0 +1,14 @@
+#!/bin/sh
+# gmobile only reads display-panel definitions from its compiled-in GResource,
+# and upstream has no entry for zeus, so the panel - and its cutout - are
+# invisible to phosh. GLib's G_RESOURCE_OVERLAYS redirects that exact resource
+# path at a file on disk, which gets the cutout in without rebuilding gmobile.
+OV=/usr/share/gmobile/devices/display-panels
+export G_RESOURCE_OVERLAYS="/mobi/phosh/gmobile/devices/display-panels/xiaomi,zeus.json=$OV/xiaomi,zeus.json"
+
+# PHOC_DEBUG=cutouts draws the cutout region on screen so its geometry can be
+# checked against the actual camera. Remove once confirmed.
+export PHOC_DEBUG=cutouts
+export G_MESSAGES_DEBUG=all
+
+exec /usr/bin/phosh-session "$@" >>/var/log/zeus-session.log 2>&1

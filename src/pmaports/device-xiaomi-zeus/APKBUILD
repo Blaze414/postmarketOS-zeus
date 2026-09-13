@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=8
+pkgrel=9
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -43,6 +43,8 @@ makedepends="
 source="
 	deviceinfo
 	phoc.ini
+	xiaomi,zeus.json
+	zeus-phosh-session
 "
 
 build() {
@@ -58,6 +60,16 @@ phosh() {
 
 	install -D -m644 "$srcdir"/phoc.ini \
 		"$subpkgdir"/etc/phosh/phoc.ini
+
+	# Display cutout. gmobile only reads panel definitions from its
+	# compiled-in GResource and upstream has no entry for zeus, so phosh
+	# never learns this panel has a punch-hole. The session wrapper points
+	# G_RESOURCE_OVERLAYS at the file below, which is enough - no rebuild of
+	# gmobile required.
+	install -D -m644 "$srcdir"/xiaomi,zeus.json \
+		"$subpkgdir"/usr/share/gmobile/devices/display-panels/xiaomi,zeus.json
+	install -D -m755 "$srcdir"/zeus-phosh-session \
+		"$subpkgdir"/usr/local/bin/zeus-phosh-session
 }
 
 openrc() {

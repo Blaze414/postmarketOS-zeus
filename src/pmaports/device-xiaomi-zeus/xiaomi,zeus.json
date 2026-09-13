@@ -1,0 +1,14 @@
+{
+  "name": "Xiaomi 12 Pro",
+  "x-res": 1440,
+  "y-res": 3200,
+  "width": 70,
+  "height": 156,
+  "border-radius": 120,
+  "cutouts": [
+    {
+      "name": "punch-hole",
+      "path": "M 675,95 a 45,45 0 1,0 90,0 a 45,45 0 1,0 -90,0 Z"
+    }
+  ]
+}

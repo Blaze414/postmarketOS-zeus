@@ -476,3 +476,39 @@ with WMI timeouts accumulating slowly in the background.
 A note on method: `retrain.py` **sets the Link Control retrain bit**, so polling
 with it perturbs the link being measured - a WMI timeout appeared right after one
 such poll. It is a one-shot diagnostic, not a monitor.
+
+## Notch: applied without rebuilding gmobile
+
+gmobile loads display-panel definitions with `g_resources_lookup_data()`, so they
+have to be compiled into the library and `/usr/share/gmobile/devices/` is not a
+search path. Upstream has no entry for zeus, so phosh never learned this panel
+has a punch-hole.
+
+Rebuilding gmobile is not necessary. GLib honours **`G_RESOURCE_OVERLAYS`**,
+which maps a resource path to a file on disk, and gmobile looks the panel up by
+the devicetree compatible - here `xiaomi,zeus` - at a fixed path. Pointing that
+one resource at a file is enough:
+
+```
+G_RESOURCE_OVERLAYS=/mobi/phosh/gmobile/devices/display-panels/xiaomi,zeus.json=/usr/share/gmobile/devices/display-panels/xiaomi,zeus.json
+```
+
+Set from `/usr/local/bin/zeus-phosh-session`, which the autologin session runs
+instead of `phosh-session`. The log confirms it takes:
+
+```
+Mapped file '/usr/share/gmobile/devices/display-panels/xiaomi,zeus.json' as a resource overlay
+phoc-cutouts-overlay-DEBUG: Found panel 'Xiaomi 12 Pro'
+phoc-output-DEBUG: Adding cutouts overlay
+```
+
+The wrapper also sets `PHOC_DEBUG=cutouts`, which makes phoc draw the cutout
+region on screen. That is deliberate for now: the geometry is still an estimate -
+a 90px punch-hole centred at (720, 95), derived from 1440px over 70mm and a ~4mm
+camera - because Android's real figure sits inside `framework-res.apk` and needs
+Android resource tooling to read. Drawing it is the cheapest way to check it
+against the actual camera, and the line should come out once the numbers are
+confirmed.
+
+Both the JSON and the wrapper ship from the device package, and the post-install
+switches greetd's `initial_session` over to the wrapper.

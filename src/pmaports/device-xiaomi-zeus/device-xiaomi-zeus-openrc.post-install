@@ -38,3 +38,10 @@ if [ -e "$OSK" ]; then
 	sed -e '/^OnlyShowIn=/d' -e '/^X-GNOME-HiddenUnderSystemd=/d' \
 		"$OSK" > /etc/xdg/autostart/sm.puri.OSK0.desktop
 fi
+
+# Display cutout: run the session through the wrapper that sets
+# G_RESOURCE_OVERLAYS, so gmobile can see this panel's definition.
+GC=/etc/phrog/greetd-config.toml
+if [ -e "$GC" ] && grep -q '^command = "/usr/bin/phosh-session"' "$GC"; then
+	sed -i 's|^command = "/usr/bin/phosh-session"|command = "/usr/local/bin/zeus-phosh-session"|' "$GC"
+fi
