@@ -534,3 +534,28 @@ device sub-graph (the FE already carries an MFC). If the sink then reports
 the fix is a one-widget BE. Groundwork: `scripts/acdb/acdbtag.c` already prints
 the exact rate/width/channels the endpoint must be configured with (48000 or
 96000, 24-bit, 2 or 3 ch).
+
+### Tested: it is not the MFC/internal chain
+
+Built `Xiaomi-12-tdm-nomfc-tplg.conf` - the speaker back end reduced to
+DATA_LOGGING -> TDM_SINK, the exact two-module shape of the working headphone
+back end (`device113`: DATA_LOGGING -> CODEC_DMA_SINK), only the endpoint module
+id (0x0700100E vs 0x07001023) and its hw-interface tokens differ. Compiled with
+alsatplg, flashed, tested.
+
+Result: unchanged. `MODULE:60a2 ... media_format_set: 0`, still starving. So the
+missing media format is **not** caused by the MFC or the extra chain modules -
+a TDM_SINK in the identical graph position where a CODEC_DMA_SINK works still
+never receives an input media format.
+
+That narrows it to the endpoint module itself: in this SPF build the container
+propagates the front-end media format to a CODEC_DMA_SINK but not to a
+TDM_SINK, even though (per the disassembly above) both modules' input-MF
+handlers are byte-identical. The difference must be in how the container brings
+up a TDM hardware endpoint - likely it withholds the input media format until
+the endpoint reports its interface/DMA ready, and that readiness handshake
+(PARAM_ID_TDM_INTF_CFG / HW_EP_MF_CFG applied in the right order, or a clock the
+container waits on) is what is still missing. That is the next thread to pull.
+
+`Xiaomi-12-tdm-nomfc-tplg.bin` kept in `out/` for reference; device restored to
+the HDK topology (headphones) after the test.
