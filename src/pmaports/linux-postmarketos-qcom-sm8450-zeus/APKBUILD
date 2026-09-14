@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=30
+pkgrel=32
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -43,6 +43,7 @@ source="
 	0005-ath11k-reset-the-firmware-when-wmi-stops-answering.patch
 	0006-q6apm-poll-for-spf-readiness-like-the-downstream-driver.patch
 	0007-pdr-ack-service-up-before-notifying-clients.patch
+	0008-apr-install-the-gpr-callback-before-probing.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -126,4 +127,5 @@ e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c3841
 64157727f53b104693af1cd7bbcefa15b1db8866e6c9133e0c54da990097fcdeae614d2652539cbb9bce9591a24855c945491bf58a1f8f9ec9c214718ceee901  0005-ath11k-reset-the-firmware-when-wmi-stops-answering.patch
 34280f458d0627be7187e4727f207ebeef125e26cdd1ac5c282fd326ae0c5269831b06c5784748ea746930a8170b57e55ffb0a8fe45f08d370b32ce2b7830cb4  0006-q6apm-poll-for-spf-readiness-like-the-downstream-driver.patch
 c37614a0c561893f929594558aadd590d12ffaeaa6b8d9afef7a546a36a30c08b0bd94a19e5fa4208b2b1f24ed95a62d66374f62a49af014b69e82ba4ce27cf8  0007-pdr-ack-service-up-before-notifying-clients.patch
+bd27da92de7f0e161134a0c0a18cf57d9e6a74ed8c599006b79e864d405c02b8da62bb02aea6a10c79838f6132d09580f2c2a5e89e5de4dbf6303c1abd655744  0008-apr-install-the-gpr-callback-before-probing.patch
 "

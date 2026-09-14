@@ -562,3 +562,51 @@ devicetree, which is upstream-scale work rather than configuration.
 the ADSP comes up at ~6.6s. `APM_CMD_GET_SPF_STATE` still times out at ~12s, so
 the ADSP not being able to fetch files was not the cause either. That theory
 joins pd-mapper and the DSP firmware placement in the ruled-out list.
+
+## Why SPF never started: we were deaf to the answer
+
+It was not the ADSP. Tracing every packet across the GPR link showed the ADSP
+answering all along - 155 packets each way - and the reply to the SPF query
+arriving **4ms** after the request:
+
+```
+10.513  GPRTRACE tx  src_port=0x1 dst_port=0x1 opcode=0x1001021   (GET_SPF_STATE)
+10.517  GPRTRACE rx  src_port=0x1 dst_port=0x1 opcode=0x2001007   (the response)
+15.586  qcom-apm: CMD timeout for [1001021] opcode
+```
+
+The right opcode, to the right port, five seconds before the timeout was
+reported. The packet was being thrown away:
+
+```c
+static int apr_device_probe(struct device *dev)
+{
+	ret = adrv->probe(adev);
+	if (!ret)
+		adev->svc.callback = adrv->gpr_callback;   /* too late */
+	return ret;
+}
+```
+
+The callback is installed **after** the driver's probe returns, and
+`q6apm_probe()` sends `GET_SPF_STATE` from inside probe.
+`gpr_do_rx_callback()` finds the service, sees `svc->callback` is NULL and
+returns without a word - the silent drop is why nothing in the log ever pointed
+at it. The caller then waited out its full five seconds for a reply that had
+already arrived.
+
+That also explains why polling did not help: every retry happens inside the same
+probe, so every response is dropped. Any driver that sends a command from probe
+and waits for the answer hits this; q6apm is simply the one that does.
+
+`0008-apr-install-the-gpr-callback-before-probing.patch` installs the callback
+first and clears it if probe fails. Nothing can be delivered before the device
+exists, so this is safe.
+
+Result: `CMD timeout` went from 6 per boot to **0**, and `speaker-test` now
+reaches "Front Left" where it used to fail instantly.
+
+Playback still ends in -EIO, with no kernel error at all now. That is a routing
+problem rather than a DSP one, and the known gap is still the topology: the HDK
+file this device borrows has no TDM backend, so nothing in it can reach zeus's
+four CS35L41 amps. But the DSP itself is finally talking.
