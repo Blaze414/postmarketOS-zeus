@@ -1349,6 +1349,13 @@
 		clocks = <&q6prmcc LPASS_CLK_ID_TER_MI2S_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
 		clock-names = "bclk";
 	};
+
+	/* The speakers' real backend: TDM, as on stock (patch 0011). */
+	dai@38 {
+		reg = <TERTIARY_TDM_RX_0>;
+		clocks = <&q6prmcc LPASS_CLK_ID_TER_TDM_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "bclk";
+	};
 };
 
 &sound {
@@ -1439,7 +1446,7 @@
 		link-name = "Primary Spkr Playback";
 
 		cpu {
-			sound-dai = <&q6apmbedai TERTIARY_MI2S_RX>;
+			sound-dai = <&q6apmbedai TERTIARY_TDM_RX_0>;
 		};
 
 		codec {

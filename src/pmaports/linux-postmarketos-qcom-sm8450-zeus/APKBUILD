@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=34
+pkgrel=35
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -46,6 +46,7 @@ source="
 	0008-apr-install-the-gpr-callback-before-probing.patch
 	0009-asoc-qcom-give-mi2s-backends-a-clock.patch
 	0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
+	0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -120,7 +121,7 @@ package() {
 sha512sums="
 75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz
 a6b779d46efa58f3f5df741d7a5c8287864618a83da03d04143783dd156f2e7913c8a35db9a86ab339db43d759be54d97fedaa9544bdd73466c6d0da69b8a7c3  config-postmarketos-qcom-sm8450-zeus.aarch64
-d77e500e594654354dded2bf4b8169b0f10aa9410cfd7a1ba3aea95e029af9a8304d5fdb9be92f489254a6384c5f04154025adf3bb4aee11703bd4677a03d3b4  sm8450-xiaomi-zeus.dts
+28e23e9d640c1a15e79912f2dedbba01c6b66eaccce76fdda5111e4cdda8d2394d6018857a30cb3acc3e9e82a15ba1d1b844e31d25bd81614d25513a1ff9bc47  sm8450-xiaomi-zeus.dts
 ff3fae64733f48dc97748d17fa4a159a5dfe136fab80ab7373bb8d65446c747e5eae3244e76143cb24e7147ea9702bed251a7433d09d8b0be95f410a47ccdfd3  panel-l2-38-0c-0a-dsc.c
 bfde6fad3117dec055efe88a6a60c2393b3f5297e5ffacc743ae519e0100ed296d9546b8e6b86d9a75bbeb53676946a05e9f6cec2e95f3f8e0a7729c325b9664  0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c38412cf36e93c4cb20d257969f3b3ac5bb89b262d746503f1d7a  0002-fts-single-full-duplex-transfer-for-geni.patch
@@ -132,4 +133,5 @@ c37614a0c561893f929594558aadd590d12ffaeaa6b8d9afef7a546a36a30c08b0bd94a19e5fa420
 bd27da92de7f0e161134a0c0a18cf57d9e6a74ed8c599006b79e864d405c02b8da62bb02aea6a10c79838f6132d09580f2c2a5e89e5de4dbf6303c1abd655744  0008-apr-install-the-gpr-callback-before-probing.patch
 65899ce47719537a8b2c19ad0779d6bc96c314acc63b88442e2b7ecd97056942b85c464a881e1956b4d976a3beedd6fb8dbb4208ac5976783c11086a05f84404  0009-asoc-qcom-give-mi2s-backends-a-clock.patch
 fb223f1ee1f8dea9203edd58e24157630a8fd63eea6ee86db1fbc3c352cf03b2c871a1158077dd30e5c0b40ad9ef31b01d324f76a097e95cb59eaa96690060d7  0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
+d4cf3c15b8fad6a2316e1f14bda4dd3ed61336d6e881ea3f9d7eb2208443834386052788f40189799ad7b7993d3bafb77ba2ca0a884c05adaf9bd935d13b39af  0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
 "

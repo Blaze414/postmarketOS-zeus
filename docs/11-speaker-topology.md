@@ -219,3 +219,29 @@ cmdline names it. Flashing only a newly built boot.img onto an older rootfs
 stops in the initramfs ("failed to mount subpartitions", debug shell on :23).
 Flash boot and root together, or rewrite `pmos_root_uuid`/`pmos_boot_uuid` in
 the image to the installed rootfs's values first.
+
+## Stock actually uses TDM_SINK at 8 x 32-bit - implemented, still rejected
+
+Read from the phone's own vendor partition:
+
+- `resourcemanager_waipio_mtp.xml`: speaker backend `TDM-LPAIF-RX-TERTIARY-VIRT-0`,
+  2 channels, 24-bit, amps with `PCM Source = DSP` (Cirrus firmware).
+- ACDB `Mise_elus_acdb_cal.acdb`: `MODULE_ID_TDM_SINK` (0x0700100E, from SPF's
+  `pcm_tdm_api.h`) appears 61 times; `I2S_SINK` and `AUDIO_IF_SINK` never.
+- Downstream `msm_common.c`: 32-bit slots, `qcom,tdm-max-slots = <8>` on zeus,
+  bit clock `CLOCK_ID_TER_TDM_IBIT` (0x204) at rate x 32 x 8 = 12.288 MHz.
+  (The DT's `clk-rate = 0x177000` is not what runs.)
+- `adsp.mbn` contains the driver statically (`capi_pcm_tdm_island.c`).
+
+`0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch` implements that:
+`PARAM_ID_TDM_INTF_CFG` for TDM_SINK, TDM dai ops, the TER_TDM_IBIT PRM clock,
+S32 on the backend, slots 0/1, per-amp channel from the name prefix. The
+speaker link and a `dai@38` clock node now name `TERTIARY_TDM_RX_0`.
+
+On hardware the clock is set to 12288000 Hz without error, and
+`APM_CMD_GRAPH_OPEN` is still rejected - both with the plain endpoint subgraph
+and rebuilt on the exact codec-path template (logger -> MFC -> endpoint) that
+opens fine for headphones, i.e. the only remaining difference is the endpoint
+module on LPAIF interface 2. The DSP returns bare AR_EFAILED; its reason goes to
+its own diag log. Reading that log (Qualcomm diag over the DSP's diag channel)
+is the next step rather than more guessed variants.
