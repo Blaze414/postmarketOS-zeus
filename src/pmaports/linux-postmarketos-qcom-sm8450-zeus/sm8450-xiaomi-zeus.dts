@@ -1404,11 +1404,27 @@
 		};
 	};
 
+	/*
+	 * The four CS35L41 amps, on tertiary LPASS.
+	 *
+	 * This used to name TERTIARY_TDM_RX_0, which is what the stock kernel
+	 * calls this port - and which does nothing here, because audioreach has
+	 * no TDM support: q6apm-lpass-dais never sets cfg->q6tdm_ops, so
+	 * q6dsp_audio_ports_set_config() leaves ops NULL for every TDM dai and
+	 * the link had no operations at all.
+	 *
+	 * It does not need TDM. The stock devicetree configures this port with
+	 * clk-rate = <0x177000> (1.536 MHz), clk-internal = <1>, sync-mode = <1>
+	 * and data-delay = <1>: at 48 kHz that is 32 bit clocks per frame, two
+	 * 16-bit slots, long frame sync, one-bit delay. That is stereo I2S, so
+	 * an MI2S backend describes the same wire and is a path this kernel can
+	 * actually drive.
+	 */
 	speaker-playback-dai-link {
 		link-name = "Primary Spkr Playback";
 
 		cpu {
-			sound-dai = <&q6apmbedai TERTIARY_TDM_RX_0>;
+			sound-dai = <&q6apmbedai TERTIARY_MI2S_RX>;
 		};
 
 		codec {

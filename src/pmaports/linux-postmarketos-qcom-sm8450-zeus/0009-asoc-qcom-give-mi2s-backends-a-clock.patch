@@ -1,0 +1,127 @@
+ASoC: qcom: make an MI2S backend actually clock
+
+Two halves of one hole. audioreach picks ws_src from cfg->fmt, which only
+q6i2s_set_fmt writes and which q6i2s_ops never exposed; and no machine driver
+in this family ever calls snd_soc_dai_set_fmt() on a backend, because
+qcom_snd_parse_of() does not parse dai-format. The result on any board with an
+MI2S backend is a port configured as a clock consumer with no provider.
+
+The same path also never told the codec what the bit clock rate is. CS35L41
+locks a PLL to SCLK and stays silent without it, and it wants both the
+component and the DAI sysclk callback - one programs the PLL, the other sizes
+the clock monitor, and snd_soc_dai_set_sysclk() calls only the DAI one when a
+codec has both.
+
+On the Xiaomi 12 Pro this is the difference between the four speaker amps
+playing and the only reachable output being wcd938x's headphone pins, which
+this phone does not bring out to anything.
+
+--- a/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
++++ b/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
+@@ -260,6 +260,15 @@
+ 	.shutdown	= q6apm_lpass_dai_shutdown,
+ 	.set_channel_map  = q6dma_set_channel_map,
+ 	.hw_params        = q6dma_hw_params,
++	/*
++	 * Without this an MI2S backend has no way to be told who drives the
++	 * clocks. audioreach_i2s_set_media_format() switches on cfg->fmt to pick
++	 * ws_src, and cfg->fmt is only ever written here, so it stayed 0: no
++	 * case matched, ws_src kept its zero value - CONFIG_I2S_WS_SRC_EXTERNAL -
++	 * and the DSP sat waiting for a bit clock from a codec that was itself
++	 * waiting for one. q6hdmi_ops has carried this op all along.
++	 */
++	.set_fmt	= q6i2s_set_fmt,
+ };
+ 
+ static const struct snd_soc_dai_ops q6hdmi_ops = {
+--- a/sound/soc/qcom/sc8280xp.c
++++ b/sound/soc/qcom/sc8280xp.c
+@@ -7,6 +7,7 @@
+ #include <sound/soc.h>
+ #include <sound/soc-dapm.h>
+ #include <sound/pcm.h>
++#include <sound/pcm_params.h>
+ #include <linux/soundwire/sdw.h>
+ #include <sound/jack.h>
+ #include <linux/input-event-codes.h>
+@@ -44,6 +45,23 @@
+ 		snd_soc_limit_volume(card, "SpkrLeft PA Volume", 17);
+ 		snd_soc_limit_volume(card, "SpkrRight PA Volume", 17);
+ 		break;
++	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
++	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
++		/*
++		 * Nothing else ever sets a format on an MI2S backend here:
++		 * qcom_snd_parse_of() does not look for dai-format, and no machine
++		 * driver in this family calls snd_soc_dai_set_fmt(). The DSP end then
++		 * runs with ws_src = CONFIG_I2S_WS_SRC_EXTERNAL and waits for a bit
++		 * clock that nothing on the board produces.
++		 *
++		 * LPASS is the clock provider on every board that reaches this - the
++		 * Xiaomi 12 Pro's four CS35L41 amps on tertiary MI2S included, whose
++		 * stock devicetree says the same thing with
++		 * qcom,msm-cpudai-tdm-clk-internal = <1>.
++		 */
++		return snd_soc_runtime_set_dai_fmt(rtd, SND_SOC_DAIFMT_I2S |
++						   SND_SOC_DAIFMT_NB_NF |
++						   SND_SOC_DAIFMT_CBC_CFC);
+ 	case DISPLAY_PORT_RX_0:
+ 		/* DISPLAY_PORT dai ids are not contiguous */
+ 		dp_pcm_id = 0;
+@@ -101,6 +119,41 @@
+ 	return 0;
+ }
+ 
++/*
++ * An MI2S codec is handed a bit clock it did not ask for and has no other way
++ * to learn the rate of. CS35L41, for one, runs its whole digital section off a
++ * PLL locked to SCLK and produces silence until that PLL is told what SCLK is.
++ */
++static int sc8280xp_snd_mi2s_set_sysclk(struct snd_soc_pcm_runtime *rtd,
++					struct snd_pcm_hw_params *params)
++{
++	struct snd_soc_dai *codec_dai;
++	unsigned int sclk;
++	int i, ret;
++
++	sclk = params_rate(params) * params_channels(params) * params_width(params);
++
++	for_each_rtd_codec_dais(rtd, i, codec_dai) {
++		/*
++		 * clk id 0 is SCLK for CS35L41 and is ignored by codecs that do
++		 * not care. Both calls are needed and neither implies the other:
++		 * snd_soc_dai_set_sysclk() only falls back to the component op
++		 * when the DAI has none, and CS35L41 has both - the DAI one sizes
++		 * the clock monitor, the component one programs the PLL.
++		 */
++		ret = snd_soc_component_set_sysclk(codec_dai->component, 0, 0,
++						   sclk, SND_SOC_CLOCK_IN);
++		if (ret && ret != -ENOTSUPP)
++			return ret;
++
++		ret = snd_soc_dai_set_sysclk(codec_dai, 0, sclk, SND_SOC_CLOCK_IN);
++		if (ret && ret != -ENOTSUPP)
++			return ret;
++	}
++
++	return 0;
++}
++
+ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
+ 				struct snd_pcm_hw_params *params)
+ {
+@@ -108,6 +161,14 @@
+ 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+ 	struct sc8280xp_snd_data *pdata = snd_soc_card_get_drvdata(rtd->card);
+ 
++	switch (cpu_dai->id) {
++	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
++	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
++		return sc8280xp_snd_mi2s_set_sysclk(rtd, params);
++	default:
++		break;
++	}
++
+ 	return qcom_snd_sdw_hw_params(substream, params, &pdata->sruntime[cpu_dai->id]);
+ }
+ 

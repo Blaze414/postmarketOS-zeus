@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=11
+pkgrel=12
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -38,6 +38,7 @@ subpackages="
 	$pkgname-openrc
 	"
 makedepends="
+	alsa-utils
 	devicepkg-dev
 "
 source="
@@ -48,10 +49,26 @@ source="
 	zeus-cpufreq.start
 	Xiaomi-12.conf
 	HiFi.conf
+	Xiaomi-12-tplg.conf
+	Xiaomi-12-sd0-tplg.conf
 "
 
 build() {
 	devicepkg_build $startdir $pkgname
+
+	# The ADSP graph topology. The card asks the firmware loader for
+	# qcom/<driver>/<model>-tplg.bin, i.e. qcom/sm8450/Xiaomi-12-tplg.bin, and
+	# refuses to probe at all without one; zeus has been borrowing the SM8450
+	# HDK's via a symlink, which describes this SoC correctly but knows nothing
+	# about this board's speakers.
+	#
+	# These two are that file plus a tertiary MI2S playback backend, generated
+	# from src/topology/Xiaomi-12.m4 by scripts/gen-topology.sh. They differ
+	# only in which serial data line the speakers are on - see that m4 for why
+	# both are shipped.
+	for t in Xiaomi-12-tplg Xiaomi-12-sd0-tplg; do
+		alsatplg -c "$srcdir/$t.conf" -o "$srcdir/$t.bin"
+	done
 }
 
 package() {
@@ -67,6 +84,11 @@ package() {
 		"$pkgdir"/usr/share/alsa/ucm2/conf.d/sm8450/Xiaomi-12.conf
 	install -D -m644 "$srcdir"/HiFi.conf \
 		"$pkgdir"/usr/share/alsa/ucm2/Qualcomm/sm8450/Zeus/HiFi.conf
+
+	install -D -m644 "$srcdir"/Xiaomi-12-tplg.bin \
+		"$pkgdir"/lib/firmware/qcom/sm8450/Xiaomi-12-tplg.bin
+	install -D -m644 "$srcdir"/Xiaomi-12-sd0-tplg.bin \
+		"$pkgdir"/lib/firmware/qcom/sm8450/Xiaomi-12-sd0-tplg.bin
 }
 
 phosh() {

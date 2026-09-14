@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=32
+pkgrel=33
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -44,6 +44,7 @@ source="
 	0006-q6apm-poll-for-spf-readiness-like-the-downstream-driver.patch
 	0007-pdr-ack-service-up-before-notifying-clients.patch
 	0008-apr-install-the-gpr-callback-before-probing.patch
+	0009-asoc-qcom-give-mi2s-backends-a-clock.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 

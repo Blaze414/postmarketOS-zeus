@@ -9,21 +9,11 @@
 # a crash and is not one.
 rc-update add qbootctl default 2>/dev/null || true
 
-# The audioreach topology is requested as qcom/<driver>/<card name>-tplg.bin,
-# which for this devicetree's model = "Xiaomi-12" means
-# qcom/sm8450/Xiaomi-12-tplg.bin. No such file exists - linux-firmware ships one
-# for the SM8450 HDK only - so the APM component probe failed with -ENOENT and
-# the whole sound card failed to instantiate: no card0 at all.
-#
-# The HDK is the reference board for this SoC and its ADSP graph topology is
-# SoC-level rather than board-level, so pointing zeus at it brings the card up.
-# Board-specific routing (the four CS35L41 speaker amps, the mic array) still
-# needs a zeus topology and the audio-routing property that is currently
-# commented out in the devicetree.
-TPLG=/lib/firmware/qcom/sm8450
-if [ -e "$TPLG/SM8450-HDK-tplg.bin.zst" ] && [ ! -e "$TPLG/Xiaomi-12-tplg.bin.zst" ]; then
-	ln -sf SM8450-HDK-tplg.bin.zst "$TPLG/Xiaomi-12-tplg.bin.zst"
-fi
+# zeus now ships its own ADSP topology (see the package's build()), so drop the
+# symlink that earlier versions pointed at the SM8450 HDK's. Leaving it behind
+# is not harmful - the firmware loader prefers the uncompressed name that is now
+# a real file - but it makes it look like the HDK topology is still in use.
+rm -f /lib/firmware/qcom/sm8450/Xiaomi-12-tplg.bin.zst
 
 # On-screen keyboard.
 #
