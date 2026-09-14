@@ -1,0 +1,85 @@
+From: YusufAlZadid <yusufalzadid@gmail.com>
+Subject: [PATCH] ASoC: qcom: q6apm: open graphs from vendor ACDB blobs
+
+If qcom/apm-graph-<graph id>.bin exists, send it as the APM_CMD_GRAPH_OPEN
+payload instead of the one built from topology, and follow it with
+qcom/apm-graph-<graph id>-cal.bin as APM_CMD_SET_CFG. The Xiaomi 12 Pro's
+speaker chain (volume, MFC, splitter, mux-demux, logger, TDM sink) and its
+calibration come from the stock ACDB and cannot be written as topology.
+
+---
+--- a/sound/soc/qcom/qdsp6/q6apm.c	2026-09-14 23:08:43
++++ b/sound/soc/qcom/qdsp6/q6apm.c	2026-09-14 23:08:43
+@@ -3,6 +3,7 @@
+ 
+ #include <dt-bindings/soc/qcom,gpr.h>
+ #include <linux/delay.h>
++#include <linux/firmware.h>
+ #include <linux/jiffies.h>
+ #include <linux/kernel.h>
+ #include <linux/module.h>
+@@ -37,10 +38,40 @@
+ 					NULL, &apm->wait, pkt, rsp_opcode);
+ }
+ 
++/*
++ * Send a raw APM command payload from firmware, if the file exists. Lets a
++ * graph be opened and calibrated exactly as the vendor ACDB describes it
++ * (qcom/apm-graph-<id>.bin: GRAPH_OPEN payload, -cal.bin: SET_CFG payload),
++ * for modules the topology format has no way to express.
++ */
++static struct gpr_pkt *q6apm_graph_fw_pkt(struct q6apm *apm, uint32_t graph_id,
++					  const char *suffix, uint32_t opcode)
++{
++	const struct firmware *fw;
++	struct gpr_pkt *pkt;
++	char name[48];
++
++	snprintf(name, sizeof(name), "qcom/apm-graph-%u%s.bin", graph_id, suffix);
++	if (request_firmware_direct(&fw, name, apm->dev))
++		return NULL;
++
++	pkt = audioreach_alloc_apm_cmd_pkt(ALIGN(fw->size, 8), opcode, 0);
++	if (!IS_ERR(pkt)) {
++		memcpy((void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE, fw->data, fw->size);
++		dev_info(apm->dev, "graph %u: using %s\n", graph_id, name);
++	} else {
++		pkt = NULL;
++	}
++	release_firmware(fw);
++
++	return pkt;
++}
++
+ static struct audioreach_graph *q6apm_get_audioreach_graph(struct q6apm *apm, uint32_t graph_id)
+ {
+ 	struct audioreach_graph_info *info;
+ 	struct audioreach_graph *graph;
++	struct gpr_pkt *cal;
+ 	int id;
+ 
+ 	mutex_lock(&apm->lock);
+@@ -65,7 +96,9 @@
+ 	graph->info = info;
+ 	graph->id = graph_id;
+ 
+-	graph->graph = audioreach_alloc_graph_pkt(apm, info);
++	graph->graph = q6apm_graph_fw_pkt(apm, graph_id, "", APM_CMD_GRAPH_OPEN);
++	if (!graph->graph)
++		graph->graph = audioreach_alloc_graph_pkt(apm, info);
+ 	if (IS_ERR(graph->graph)) {
+ 		void *err = graph->graph;
+ 
+@@ -87,6 +120,12 @@
+ 	kref_init(&graph->refcount);
+ 
+ 	q6apm_send_cmd_sync(apm, graph->graph, 0);
++
++	cal = q6apm_graph_fw_pkt(apm, graph_id, "-cal", APM_CMD_SET_CFG);
++	if (cal) {
++		q6apm_send_cmd_sync(apm, cal, 0);
++		kfree(cal);
++	}
+ 
+ 	return graph;
+ }

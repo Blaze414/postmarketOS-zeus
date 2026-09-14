@@ -370,3 +370,21 @@ The most direct remaining route is to reproduce the stock graph byte for byte:
 send the ACDB's own GRAPH_OPEN payload, connections and calibration blobs
 (already dumped by scripts/acdb) to the APM from the kernel, bypassing the
 topology for this one backend.
+
+## Stock graph replayed from the ACDB: the TDM endpoint consumes
+
+Patch `0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch` lets q6apm
+send `qcom/apm-graph-<id>.bin` as the GRAPH_OPEN payload and
+`qcom/apm-graph-<id>-cal.bin` as SET_CFG, instead of the topology-built packet.
+`scripts/acdb/mkgraph.py` builds both from `stock-dump/audio/spk-graph.txt`:
+the stock device subgraph (0x07001010 -> MFC -> SPLITTER -> MUX_DEMUX -> logger
+-> TDM_SINK) with its SG/container/logger/MFC/TDM ids renamed onto topology
+graph 56 (so the kernel's prepare/start/close and media-format params still
+address them), splitter links to unopened subgraphs dropped, and MultiMedia1's
+logger (0x6006) connected into 0x07001010 input port 4 as stock does.
+
+With `Xiaomi-12-tdm-mfc-tplg.bin` and the two blobs in `/lib/firmware/qcom/`:
+0 underruns, 11 buffer-dones in 5 s, media format 48000 Hz reaches the
+splitter, TDM_SINK timestamps advance, speaker-test runs in real time (6.0 s per
+3 s x 2 channels), no DSP errors. First time the speaker endpoint has consumed
+data. Audibility not yet confirmed. Amp 0x40 read GLOBAL_EN=1 during playback.

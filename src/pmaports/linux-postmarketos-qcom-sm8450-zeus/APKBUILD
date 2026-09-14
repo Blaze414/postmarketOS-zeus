@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=45
+pkgrel=46
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -48,6 +48,7 @@ source="
 	0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
 	0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
 	0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch
+	0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -136,4 +137,5 @@ bd27da92de7f0e161134a0c0a18cf57d9e6a74ed8c599006b79e864d405c02b8da62bb02aea6a10c
 fb223f1ee1f8dea9203edd58e24157630a8fd63eea6ee86db1fbc3c352cf03b2c871a1158077dd30e5c0b40ad9ef31b01d324f76a097e95cb59eaa96690060d7  0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
 318d77f718e1132ae568183f10f05b72d5f9faacdbe1cfe15c9d2caf736e99012f04f5476de8168c76a7020257873a87da8393c7691e5810820b694233849f11  0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
 7c654f0bb11545f0393b70089b22d85cc79e3b6bd5909b7ca22b3dd0c0dcead3ccd4cd754f909eebb3cdc9390481b8ada683adfb43eedeb8de03d730a102f952  0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch
+ea9c227c9182a29d9ece32f78e792bd1d03a9f24816596caf02319d8fa72cbea945e290d6e61ada98101fa82b10d2a8ada43738fedd4fad700d2f4ce3aaee67a  0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch
 "
