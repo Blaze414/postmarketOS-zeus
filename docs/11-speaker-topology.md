@@ -430,3 +430,36 @@ Not yet known: what TDM_SINK checks before accepting a media format. Its
 DSP messages are QShrink-hashed and no ADSP QDB is available. On stock, AGM
 (not the ACDB) sends the TDM interface config; its exact values for this
 backend are the missing reference.
+
+## The real TDM interface config lives in ACDB module-tag data
+
+AGM (`audioreach-graphmgr`, `graph_module.c: configure_tdm_ep`) does not
+hardcode TDM framing: it asks gsl for the tagged data of the hardware endpoint
+(tag `0xC0000004` DEVICE_HW_ENDPOINT_RX), keyed by channel count
+(`0xA9000000`). `scripts/acdb/acdbtag.c` dumps it (and the other tags) from the
+stock ACDB, which is byte-identical in EvolutionX 16's vendor image:
+
+    TDM_INTF_CFG (iid 4881), channels=2:
+      lpaif 0, intf 2, sync_src 1 (internal), ctrl_data_out_enable 1,
+      slot_mask 3, nslots_per_frame 4, slot_width 32,
+      sync_mode 0 (short, one bit), invert 0, data delay 1
+    channels=3: slot_mask 7 (group device); channels=4: 0xf
+    MUX_DEMUX (40e1), key e0000000=7: 3 connections (in2 ch0->out1 ch0,
+      in2 ch1->out1 ch1, in4 ch0->out1 ch2), out 32-bit Q27, 3 channels
+
+0014/0015 now use that frame shape (4 slots, short non-inverted sync,
+DSP_A on the amps, data out enabled). AGM otherwise sends only HW_EP_MF_CFG.
+
+Tried on the pads with this, all still without frame sync or data, and with
+`media_format_set: 0` at the TDM sink:
+- topology graph + stock TDM cal (lane, frame size, HW_INTF_CLK_CFG);
+- same without the kernel's bclk vote: then the bit clock stops too, so the
+  endpoint never starts its own clock, and the amps time out powering up;
+- backend at the stock group format (96 kHz, 3 channels, S32, mask 7).
+
+So the TDM sink never receives an input media format no matter the format or
+frame shape; the endpoint's hardware never starts. Still unexplained. The
+ADSP's own messages for it are QShrink-hashed.
+
+Tools: `payload.py`-style extraction of the ROM was done ad hoc (EROFS via
+erofs-utils); only the ACDB tag data turned out to matter.

@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=48
+pkgrel=52
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -140,6 +140,6 @@ fb223f1ee1f8dea9203edd58e24157630a8fd63eea6ee86db1fbc3c352cf03b2c871a1158077dd30
 318d77f718e1132ae568183f10f05b72d5f9faacdbe1cfe15c9d2caf736e99012f04f5476de8168c76a7020257873a87da8393c7691e5810820b694233849f11  0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
 7c654f0bb11545f0393b70089b22d85cc79e3b6bd5909b7ca22b3dd0c0dcead3ccd4cd754f909eebb3cdc9390481b8ada683adfb43eedeb8de03d730a102f952  0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch
 ea9c227c9182a29d9ece32f78e792bd1d03a9f24816596caf02319d8fa72cbea945e290d6e61ada98101fa82b10d2a8ada43738fedd4fad700d2f4ce3aaee67a  0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch
-09236c91b4f420b634a6840969571cd1eddb72084144bb4b92abf6ad5f8b2b4e28d4e1b1346e93d17c4d1d8b167f88427435f17ea1b9dd8bd369fe89c1c921f9  0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
-ab640c7131a08a74a4c2d05024bf96f43db5a056e663deb403fde680de4a8e3eaced2ab574f7b6b3fbbf79750fa5ed01bb8cbae8d2c2c324e2309ea76dfc8e7e  0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
+e0bc638edd8844b08984a9e6e87a3cd13a10e5a6d2d9bf97831833686d619d417c93cb8f1d353a7cb1fdce8df02c8baefa37d11ebdf600c5c9c3bd7f2089b704  0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
+29f1e4a91050722717c24a43ba571243ed525fd212f4b8a90464707061701ecc68cd3508db51ad91a9f2d6aa4ec054ebfaf675510d6bc966b2d2bcba96481531  0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
 "

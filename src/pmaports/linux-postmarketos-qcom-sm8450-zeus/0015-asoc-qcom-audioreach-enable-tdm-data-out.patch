@@ -1,22 +1,43 @@
 From: YusufAlZadid <yusufalzadid@gmail.com>
-Subject: [PATCH] ASoC: qcom: audioreach: enable TDM data out
+Subject: [PATCH] ASoC: qcom: audioreach: use the stock TDM frame shape
 
-SPF defaults ctrl_data_out_enable to 1; leaving it 0 keeps the TDM data
-line undriven (gpio124 measured flat during playback).
+The stock ACDB carries the speaker TDM_INTF_CFG as module tag data
+(tag 0xC0000004, keyed by channel count): data out enabled, 4 slots,
+short one-bit sync, not inverted, one bit of data delay. With the long,
+inverted 8-slot frame used before, the TDM block never framed (gpio123
+and gpio124 measured flat during playback).
 
 ---
+--- a/sound/soc/qcom/qdsp6/audioreach.h	2026-09-15 01:18:36
++++ b/sound/soc/qcom/qdsp6/audioreach.h	2026-09-15 01:18:36
+@@ -462,6 +462,8 @@
+ } __packed;
+ #define TDM_SYNC_SRC_INTERNAL			0x1
+ #define TDM_LONG_SYNC_MODE			1
++#define TDM_SHORT_SYNC_BIT_MODE			0
++#define TDM_SYNC_NORMAL				0
+ #define TDM_SYNC_INVERT				1
+ #define TDM_DATA_DELAY_1_BCLK_CYCLE		1
+ 
 --- a/sound/soc/qcom/qdsp6/audioreach.c	2026-09-15 00:58:59
-+++ b/sound/soc/qcom/qdsp6/audioreach.c	2026-09-15 00:58:59
-@@ -991,6 +991,12 @@
++++ b/sound/soc/qcom/qdsp6/audioreach.c	2026-09-15 01:18:16
+@@ -991,11 +991,17 @@
  	intf_cfg->cfg.lpaif_type = module->hw_interface_type;
  	intf_cfg->cfg.intf_idx = module->hw_interface_idx;
  	intf_cfg->cfg.sync_src = TDM_SYNC_SRC_INTERNAL;
 +	/*
-+	 * pcm_tdm_api.h defaults this to TDM_CTRL_DATA_OE_ENABLE; with it
-+	 * clear the TDM block never drives its data line and the amps hear
-+	 * silence although the endpoint consumes.
++	 * Frame shape from the stock ACDB (module tag 0xC0000004 on the
++	 * speaker TDM sink, what AGM sends): data out enabled, 4 slots, short
++	 * one-bit sync, not inverted, one bit of data delay.
 +	 */
 +	intf_cfg->cfg.ctrl_data_out_enable = 1;
  	intf_cfg->cfg.slot_mask = cfg->tdm_slot_mask;
  	intf_cfg->cfg.nslots_per_frame = cfg->tdm_slots;
  	intf_cfg->cfg.slot_width = cfg->tdm_slot_width;
+-	intf_cfg->cfg.sync_mode = TDM_LONG_SYNC_MODE;
+-	intf_cfg->cfg.ctrl_invert_sync_pulse = TDM_SYNC_INVERT;
++	intf_cfg->cfg.sync_mode = TDM_SHORT_SYNC_BIT_MODE;
++	intf_cfg->cfg.ctrl_invert_sync_pulse = TDM_SYNC_NORMAL;
+ 	intf_cfg->cfg.ctrl_sync_data_delay = TDM_DATA_DELAY_1_BCLK_CYCLE;
+ 
+ 	/*

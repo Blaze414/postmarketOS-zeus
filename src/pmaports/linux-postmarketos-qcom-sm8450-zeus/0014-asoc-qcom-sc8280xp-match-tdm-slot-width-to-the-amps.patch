@@ -9,8 +9,22 @@ at the sample width the codecs actually use.
 
 ---
 --- a/sound/soc/qcom/sc8280xp.c	2026-09-15 00:30:05
-+++ b/sound/soc/qcom/sc8280xp.c	2026-09-15 00:30:05
-@@ -133,9 +133,6 @@
++++ b/sound/soc/qcom/sc8280xp.c	2026-09-15 01:18:16
+@@ -46,6 +46,13 @@
+ 		snd_soc_limit_volume(card, "SpkrRight PA Volume", 17);
+ 		break;
+ 	case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
++		/*
++		 * The stock ACDB's TDM_INTF_CFG for the speakers is a one-bit,
++		 * non-inverted frame sync with one bit of data delay: DSP_A.
++		 */
++		return snd_soc_runtime_set_dai_fmt(rtd, SND_SOC_DAIFMT_DSP_A |
++						   SND_SOC_DAIFMT_NB_NF |
++						   SND_SOC_DAIFMT_CBC_CFC);
+ 	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
+ 	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
+ 		/*
+@@ -133,9 +140,6 @@
  	rate->min = rate->max = 48000;
  	channels->min = 2;
  	channels->max = 2;
@@ -20,7 +34,7 @@ at the sample width the codecs actually use.
  	switch (cpu_dai->id) {
  	case TX_CODEC_DMA_TX_0:
  	case TX_CODEC_DMA_TX_1:
-@@ -210,8 +207,15 @@
+@@ -210,8 +214,15 @@
  		struct snd_soc_dai *codec_dai;
  		unsigned int slot;
  		int i, ret;
@@ -33,16 +47,16 @@ at the sample width the codecs actually use.
 +		unsigned int width = params_width(params);
  
 -		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0x3, 8, 32);
-+		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0x3, 8, width);
++		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, 0x3, 4, width);
  		if (ret)
  			return ret;
  
-@@ -229,7 +233,7 @@
+@@ -229,7 +240,7 @@
  				return ret;
  		}
  
 -		return sc8280xp_snd_mi2s_set_sysclk(rtd, params_rate(params) * 32 * 8);
-+		return sc8280xp_snd_mi2s_set_sysclk(rtd, params_rate(params) * width * 8);
++		return sc8280xp_snd_mi2s_set_sysclk(rtd, params_rate(params) * width * 4);
  	}
  	default:
  		break;
