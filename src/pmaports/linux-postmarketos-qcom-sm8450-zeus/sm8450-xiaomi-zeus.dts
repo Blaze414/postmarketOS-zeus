@@ -1336,6 +1336,21 @@
 	bias-pull-up;
 };
 
+&q6apmbedai {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/*
+	 * The speaker port's bit clock lives in the DSP's resource manager and
+	 * must be voted before a graph on it can open (patch 0010).
+	 */
+	dai@14 {
+		reg = <TERTIARY_MI2S_RX>;
+		clocks = <&q6prmcc LPASS_CLK_ID_TER_MI2S_IBIT LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "bclk";
+	};
+};
+
 &sound {
 	compatible = "qcom,sm8450-sndcard";
 	pinctrl-names = "default", "sleep";

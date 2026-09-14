@@ -190,3 +190,32 @@ qbootctl runlevel, the OSK autostart and the notch overlay. The device package
 now ships those as plain files and symlinks, plus
 `/etc/modules-load.d/zeus.conf` for `fts_touch_spi`, which was never being
 autoloaded. `pd-mapper` was retried and is still a dead end.
+
+## Bit clock vote: works, and is not the blocker
+
+Mainline votes each MI2S port's bit clock through q6prm before the graph opens;
+6.13 never did. `0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch` backports
+that (per-dai `bclk` from `q6prmcc`, enabled from the machine driver's
+`hw_params`), with a `dai@14` node naming `LPASS_CLK_ID_TER_MI2S_IBIT`.
+
+On hardware the vote succeeds - debugfs shows `LPASS_CLK_ID_TER_MI2S_IBIT`
+with `clk_enable_count=1`, `clk_rate=1536000`, no PRM errors - and
+`APM_CMD_GRAPH_OPEN` is still rejected (1036 times in five minutes). The patch
+stays: it is what mainline does and costs nothing while no MI2S graph opens.
+
+The four amps are two woofers and two tweeters (Harman Kardon tuning), so even
+a working backend would need a per-amp channel/crossover split before it sounds
+right.
+
+The remaining unknown is what module and interface this vendor SPF build
+expects for the port. The authoritative record is Android's own ACDB on the
+vendor partition, which lists the module IDs of the speaker graph this exact
+firmware runs.
+
+## Flashing lesson
+
+Every `pmbootstrap install` gives the root filesystem a new UUID, and boot.img's
+cmdline names it. Flashing only a newly built boot.img onto an older rootfs
+stops in the initramfs ("failed to mount subpartitions", debug shell on :23).
+Flash boot and root together, or rewrite `pmos_root_uuid`/`pmos_boot_uuid` in
+the image to the installed rootfs's values first.

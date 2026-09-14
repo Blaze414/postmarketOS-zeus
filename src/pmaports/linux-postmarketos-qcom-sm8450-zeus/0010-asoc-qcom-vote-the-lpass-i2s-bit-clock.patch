@@ -1,0 +1,130 @@
+ASoC: qcom: vote the LPASS I2S bit clock before opening an MI2S graph
+
+Every tertiary MI2S graph on the Xiaomi 12 Pro was rejected at
+APM_CMD_GRAPH_OPEN regardless of data line, interface index or module id.
+The difference from mainline is that 6.13 never votes the port's bit clock
+through q6prm: mainline gives each MI2S dai a "bclk" from q6prmcc and the
+machine driver enables it via set_sysclk in hw_params, before prepare opens
+the graph. The DSP will not bring up an unclocked hardware endpoint.
+
+--- a/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
++++ b/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
+@@ -2,6 +2,7 @@
+ // Copyright (c) 2021, Linaro Limited
+ 
+ #include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
++#include <linux/clk.h>
+ #include <linux/err.h>
+ #include <linux/init.h>
+ #include <linux/module.h>
+@@ -22,6 +23,13 @@
+ 	struct q6apm_graph *graph[APM_PORT_MAX];
+ 	bool is_port_started[APM_PORT_MAX];
+ 	struct audioreach_module_config module_config[APM_PORT_MAX];
++	/*
++	 * LPASS I2S bit clocks are owned by the DSP's resource manager and have
++	 * to be voted for through q6prm before a graph that drives the port can
++	 * open. Backported in spirit from mainline's per-dai "bclk" clocks.
++	 */
++	struct clk *bclk[APM_PORT_MAX];
++	bool bclk_enabled[APM_PORT_MAX];
+ };
+ 
+ static int q6dma_set_channel_map(struct snd_soc_dai *dai,
+@@ -236,6 +244,48 @@
+ 	return 0;
+ }
+ 
++static int q6i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
++			    unsigned int freq, int dir)
++{
++	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
++	struct clk *bclk = dai_data->bclk[dai->id];
++	int ret;
++
++	/* ponytail: bclk only - no board here needs an MI2S mclk */
++	if (!bclk)
++		return 0;
++
++	ret = clk_set_rate(bclk, freq);
++	if (ret) {
++		dev_err(dai->dev, "failed to set bclk rate %u: %d\n", freq, ret);
++		return ret;
++	}
++
++	if (dai_data->bclk_enabled[dai->id])
++		return 0;
++
++	ret = clk_prepare_enable(bclk);
++	if (ret) {
++		dev_err(dai->dev, "failed to enable bclk: %d\n", ret);
++		return ret;
++	}
++	dai_data->bclk_enabled[dai->id] = true;
++
++	return 0;
++}
++
++static void q6i2s_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
++{
++	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
++
++	q6apm_lpass_dai_shutdown(substream, dai);
++
++	if (dai_data->bclk_enabled[dai->id]) {
++		clk_disable_unprepare(dai_data->bclk[dai->id]);
++		dai_data->bclk_enabled[dai->id] = false;
++	}
++}
++
+ static int q6i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+ {
+ 	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
+@@ -257,7 +307,8 @@
+ static const struct snd_soc_dai_ops q6i2s_ops = {
+ 	.prepare	= q6apm_lpass_dai_prepare,
+ 	.startup	= q6apm_lpass_dai_startup,
+-	.shutdown	= q6apm_lpass_dai_shutdown,
++	.shutdown	= q6i2s_shutdown,
++	.set_sysclk	= q6i2s_set_sysclk,
+ 	.set_channel_map  = q6dma_set_channel_map,
+ 	.hw_params        = q6dma_hw_params,
+ 	/*
+@@ -300,6 +351,22 @@
+ 
+ 	dev_set_drvdata(dev, dai_data);
+ 
++	for_each_child_of_node_scoped(dev->of_node, node) {
++		struct clk *clk;
++		u32 id;
++
++		if (of_property_read_u32(node, "reg", &id) || id >= APM_PORT_MAX)
++			continue;
++
++		clk = devm_get_clk_from_child(dev, node, "bclk");
++		if (IS_ERR(clk)) {
++			if (PTR_ERR(clk) == -EPROBE_DEFER)
++				return -EPROBE_DEFER;
++			continue;
++		}
++		dai_data->bclk[id] = clk;
++	}
++
+ 	memset(&cfg, 0, sizeof(cfg));
+ 	cfg.q6i2s_ops = &q6i2s_ops;
+ 	cfg.q6dma_ops = &q6dma_ops;
+--- a/sound/soc/qcom/sc8280xp.c
++++ b/sound/soc/qcom/sc8280xp.c
+@@ -132,6 +132,12 @@
+ 	int i, ret;
+ 
+ 	sclk = params_rate(params) * params_channels(params) * params_width(params);
++
++	/* Vote the LPASS bit clock in the DSP before the graph is opened. */
++	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0), 0, sclk,
++				     SND_SOC_CLOCK_OUT);
++	if (ret && ret != -ENOTSUPP)
++		return ret;
+ 
+ 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
+ 		/*
