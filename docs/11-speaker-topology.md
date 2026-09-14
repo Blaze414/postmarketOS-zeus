@@ -342,3 +342,12 @@ The phone has no 3.5 mm jack. wcd938x's headphone output only reaches a USB-C
 analog dongle through the Type-C audio switch (`typec-mux@42` on i2c), which has
 to enter audio-accessory mode. Nothing drives that yet, so the headphone path
 consuming data in the DSP does not mean sound comes out of a dongle.
+
+## USB-C audio works
+
+`CONFIG_SND_USB_AUDIO` was not set, so USB Audio Class devices enumerated in
+host mode but got no driver. Enabled as a module (0411d4f). Confirmed on
+hardware: a BLUEANT SOUNDBLADE USB-C speaker registers as card 1 and plays
+through PulseAudio, and USB-C headphones work. This is independent of the ADSP,
+so it is currently the only working audio output on the phone. Passive analog
+USB-C adapters still need the Type-C audio switch driven.
