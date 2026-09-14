@@ -388,3 +388,13 @@ With `Xiaomi-12-tdm-mfc-tplg.bin` and the two blobs in `/lib/firmware/qcom/`:
 splitter, TDM_SINK timestamps advance, speaker-test runs in real time (6.0 s per
 3 s x 2 channels), no DSP errors. First time the speaker endpoint has consumed
 data. Audibility not yet confirmed. Amp 0x40 read GLOBAL_EN=1 during playback.
+
+### Amps read slot padding (fixed in 0014)
+
+Reading the CS35L41s over i2c during that playback: powered, unmuted, boost on,
+PLL locked, ASPRX1 enabled, no fault bits - but `SP_FORMAT` RX width and
+`SP_RX_WL` were 16 while the DSP framed 32-bit slots. The TDM "force S32"
+fixup used `snd_mask_set_format()`, which only adds a bit, so S16 stayed
+selected; the amps (slot width = `params_width`) read the zero half of each
+slot. 0014 drops the fixup and frames the bus at the real sample width
+(16-bit slots, 6.144 MHz); amps and DSP now agree.
