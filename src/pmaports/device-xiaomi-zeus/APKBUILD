@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=10
+pkgrel=11
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -46,6 +46,8 @@ source="
 	xiaomi,zeus.json
 	zeus-phosh-session
 	zeus-cpufreq.start
+	Xiaomi-12.conf
+	HiFi.conf
 "
 
 build() {
@@ -57,6 +59,14 @@ package() {
 
 	install -D -m755 "$srcdir"/zeus-cpufreq.start \
 		"$pkgdir"/etc/local.d/zeus-cpufreq.start
+
+	# ALSA use case manager profile. Without one matching this card the sound
+	# server cannot configure it and falls back to a Dummy Output; with it the
+	# codec routing is set up and a real sink appears.
+	install -D -m644 "$srcdir"/Xiaomi-12.conf \
+		"$pkgdir"/usr/share/alsa/ucm2/conf.d/sm8450/Xiaomi-12.conf
+	install -D -m644 "$srcdir"/HiFi.conf \
+		"$pkgdir"/usr/share/alsa/ucm2/Qualcomm/sm8450/Zeus/HiFi.conf
 }
 
 phosh() {

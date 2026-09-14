@@ -610,3 +610,44 @@ Playback still ends in -EIO, with no kernel error at all now. That is a routing
 problem rather than a DSP one, and the known gap is still the topology: the HDK
 file this device borrows has no TDM backend, so nothing in it can reach zeus's
 four CS35L41 amps. But the DSP itself is finally talking.
+
+## Audio plays: the card needed a UCM profile
+
+With the GPR callback fix the DSP handshake succeeds, but playback still ended in
+-EIO and the sound server showed a **Dummy Output**. Both had the same cause: no
+ALSA use case manager profile matched this card.
+
+alsa-lib looks for `conf.d/<card driver>/<card name>.conf`, which for this device
+is `sm8450/Xiaomi-12.conf`, and nothing shipped one. Without it the codec routing
+is never set up - the DSP writes into a path that goes nowhere, the ring never
+drains, and the stream xruns into -EIO - and the sound server, unable to
+configure the card, falls back to a null sink.
+
+The profile is modelled on Qualcomm's own SM8550-HDK: same ADSP architecture,
+same wcd938x codec and lpass macros. Its WSA speaker sections are dropped, since
+zeus drives four CS35L41 amps over tertiary TDM, a path the borrowed HDK topology
+does not describe.
+
+Two things worth remembering about testing it. `alsaucm` is stateless between
+invocations, so the verb has to be set in the same command as the device -
+`alsaucm -c hw:0 set _verb HiFi set _enadev Headphones`, not two calls, or the
+device lookup fails with ENOENT and looks like a missing control. And the card
+resolves as `hw:0` rather than by name: `alsaucm -c Xiaomi12` fails to import
+while `-c hw:0` works.
+
+With the verb and device set, speaker-test completes a full cycle:
+
+```
+ 0 - Front Left
+ 1 - Front Right
+Time per period = 5.020212
+```
+
+and after a reboot the sound server exposes a real sink instead of the null one:
+
+```
+alsa_output.platform-sound.HiFi__Headphones__sink  s16le 2ch 48000Hz
+```
+
+This is the wcd938x headphone path. The speakers still need a zeus topology with
+a TDM backend.
