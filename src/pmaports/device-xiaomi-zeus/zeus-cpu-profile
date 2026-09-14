@@ -1,0 +1,78 @@
+#!/bin/sh
+# zeus-cpu-profile - switch the SM8450 (Snapdragon 8 Gen 1) between a
+# battery/heat-friendly "conservative" clock ceiling (the default) and a
+# full-speed "performance" one, and apply it immediately.
+#
+#   zeus-cpu-profile                 show the active profile and cluster ceilings
+#   zeus-cpu-profile conservative    cap the big clusters (default)
+#   zeus-cpu-profile performance     full clocks + prime turbo (2.9952 GHz)
+#
+# The choice is remembered in STATE and re-applied at boot by
+# /etc/local.d/zeus-cpufreq.start. Run the setting commands as root.
+#
+# Profiles:
+#   conservative  cpu4-6 -> 1881600, cpu7 -> 1728000, prime turbo off
+#   performance   every cluster at its own maximum, prime turbo (boost) on
+#
+# Heat stays bounded either way by the SoC's hardware limits-management and the
+# per-CPU thermal trips (90 C passive, 125 C critical); the profile only sets
+# the ceiling those scale down from.
+
+STATE=/var/lib/zeus/cpu-profile
+CPUFREQ=/sys/devices/system/cpu/cpufreq
+GPU=/sys/class/devfreq/3d00000.gpu
+
+set_max() {	# cpu, khz
+	f=$CPUFREQ/policy$1/scaling_max_freq
+	[ -w "$f" ] && echo "$2" > "$f"
+}
+
+apply() {
+	case "$1" in
+	performance)
+		[ -w $CPUFREQ/boost ] && echo 1 > $CPUFREQ/boost
+		for p in $CPUFREQ/policy*; do
+			[ -w "$p/scaling_max_freq" ] &&
+				cat "$p/cpuinfo_max_freq" > "$p/scaling_max_freq"
+		done
+		;;
+	*)	# conservative (default)
+		# Drop boost first: toggling it re-clamps every policy's scaling_max
+		# back to its uncapped ceiling, so the caps have to be written after.
+		[ -w $CPUFREQ/boost ] && echo 0 > $CPUFREQ/boost
+		set_max 4 1881600	# cpu4-6 share policy4
+		set_max 7 1728000
+		;;
+	esac
+	# GPU scales itself across its full range; just keep it off userspace.
+	[ -w "$GPU/governor" ] && echo simple_ondemand > "$GPU/governor" 2>/dev/null
+}
+
+read_state() {
+	p=$(cat "$STATE" 2>/dev/null)
+	case "$p" in performance) echo performance;; *) echo conservative;; esac
+}
+
+case "${1:-status}" in
+conservative|performance)
+	mkdir -p "$(dirname "$STATE")"
+	echo "$1" > "$STATE" || { echo "zeus-cpu-profile: need root to set the profile" >&2; exit 1; }
+	apply "$1"
+	echo "profile: $1"
+	;;
+boot)	# used by the local.d boot hook
+	apply "$(read_state)"
+	;;
+status)
+	echo "profile: $(read_state)"
+	for p in 0 4 7; do
+		d=$CPUFREQ/policy$p
+		[ -d "$d" ] && echo "  policy$p  max=$(cat $d/scaling_max_freq)  cur=$(cat $d/scaling_cur_freq)"
+	done
+	echo "  boost=$(cat $CPUFREQ/boost 2>/dev/null)  gpu_max=$(cat $GPU/max_freq 2>/dev/null)"
+	;;
+*)
+	echo "usage: zeus-cpu-profile [conservative|performance|status]" >&2
+	exit 1
+	;;
+esac
