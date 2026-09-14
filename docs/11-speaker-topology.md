@@ -463,3 +463,27 @@ ADSP's own messages for it are QShrink-hashed.
 
 Tools: `payload.py`-style extraction of the ROM was done ad hoc (EROFS via
 erofs-utils); only the ACDB tag data turned out to matter.
+
+## ADSP firmware: what disassembly shows so far
+
+`firmware-dump/mbn/adsp.mbn` is plain Hexagon ELF (rizin 0.9 with `-F elf`
+disassembles it; references are `immext` + `combine(#n,##addr)` absolute
+loads). Log calls use 16-byte descriptors `{ssid<<16|line, mask, fmt|hash, 0}`
+(ssid 0x2134 = 8500); QShrink ones carry a hash where the format pointer would
+be, so only a few plain strings survive.
+
+Island (low-power) audio drivers present, by source file name:
+- codec DMA: `codec_dma_driver_island.c`, `codec_dma_driver_sink_island.c`
+- I2S: `i2s_driver_common_island.c`, `..._sink_island.c`, `..._source_island.c`
+- TDM: `pcm_tdm_driver_common_island.c`, `pcm_tdm_driver_source_island.c`,
+  `capi_pcm_tdm_island.c` - **no TDM sink island driver**
+- non-island: `pcm_tdm_driver.c`, `hal_i2s_v4.c`, `i2s_driver.c`
+
+The TDM playback data path therefore is not built like I2S/codec DMA sinks
+here. Not proven to be the cause, but it is the only structural difference
+found between the working endpoint and this one.
+
+Other dead ends checked: the ACDB's AMDB registration (dynamic DSP modules
+Android registers at boot) lists only aptX/LC3/Elliptic ultrasound modules,
+nothing for TDM (`scripts/acdb/acdbamdb.c`); holding the LPASS codec vote by
+playing headphones at the same time does not make TDM frame.
