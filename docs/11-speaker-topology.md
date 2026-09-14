@@ -245,3 +245,37 @@ opens fine for headphones, i.e. the only remaining difference is the endpoint
 module on LPAIF interface 2. The DSP returns bare AR_EFAILED; its reason goes to
 its own diag log. Reading that log (Qualcomm diag over the DSP's diag channel)
 is the next step rather than more guessed variants.
+
+## Reading the DSP's own log
+
+`scripts/diag/`: linux-msm `diag-router` built on the phone, plus `diagcat.py`,
+a minimal client that switches on all F3 message masks and prints them. Two
+gotchas on the way:
+
+- diag-router segfaults on "set all message masks": it broadcasts with a NULL
+  range and `diag_cmd_get_msg_mask()` dereferences it. One-line fix: default the
+  range to the dummy range in `diag_cntl_send_msg_mask()`.
+- Most SPF messages (SSID 8500) are QShrink-hashed. The only QDB on the phone's
+  partitions is the modem's (`image/waipio/qdsp6m.qdb`, MPSS); there is no ADSP
+  QDB, so hashed messages stay hashes. Readable ones and opcode arguments are
+  still informative.
+
+Findings, all on the TDM_SINK topology with the Speaker UCM device off and the
+path driven by hand with PulseAudio's sink suspended:
+
+1. **The speaker graph opens.** The earlier `GRAPH_OPEN` rejections happened
+   only while PulseAudio was driving both backends at once.
+2. **The endpoint runs but starves.** `MODULE:60a2, Underrun detected ...
+   media_format_set: 0` and `Ext input port 0x2 of Module 0x60a0, actual data
+   len 0`; the stream consumes at most one buffer.
+3. **The kernel sends the FE->BE connection correctly** (debug print: graph 56
+   opens with `src=0x6006 dst=0x60a0`, same shape as headphones' graph 113 with
+   `0x6006 -> 0x6070`).
+4. **Headphones pass the identical fresh-open sequence** (12 buffer-dones, no
+   underrun), so this is specific to the speaker endpoint, not graph handling.
+5. **Not the sample format**: S16 end to end starves the same way as S32.
+6. Headphone opens log `0x100100f` / `0x100102c` for their subgraph; the
+   speaker open never produces those - the DSP does not form the link for the
+   TDM subgraph. Without the ADSP QDB the reason stays behind a hash.
+
+The saved session is `stock-dump/diag-speaker-session.log`.
