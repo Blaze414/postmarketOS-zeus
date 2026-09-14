@@ -279,3 +279,35 @@ path driven by hand with PulseAudio's sink suspended:
    TDM subgraph. Without the ADSP QDB the reason stays behind a hash.
 
 The saved session is `stock-dump/diag-speaker-session.log`.
+
+## Stock graph, from the phone's ACDB
+
+`scripts/acdb/` builds AudioReach graphservices' own ACDB parser and queries
+`Mise_elus_acdb_cal.acdb` as Android does (483 graph key vectors). Speaker
+playback is `STREAMRX=0xA1000003, DEVICERX=0xA2000001` (dumps in
+`stock-dump/audio/spk-graph.txt`, headphones in `hp-graph.txt`).
+
+- Device subgraph, one GC container at graph position "global device":
+  `0x07001010 -> 0x07001015 -> SPLITTER -> MUX_DEMUX -> DATA_LOGGING -> TDM_SINK`,
+  fed from the stream's `0x07001015` into input port 4.
+- Stream subgraph, SC container: `DATA_LOGGING -> 0x0700101B -> 0x07001015`.
+- TDM_SINK static calibration: `HW_EP_MF_CFG`, `FRAME_SIZE_FACTOR=1`,
+  **`PARAM_ID_TDM_LANE_CFG = 2`** (data line 1, gpio124) and
+  `PARAM_ID_HW_INTF_CLK_CFG` with clock attribute 4 (inverted). The only
+  calibration key is volume, so `TDM_INTF_CFG` is set at runtime.
+
+Patch 0011 now also sends `PARAM_ID_TDM_LANE_CFG`. The DSP accepts it
+(`SET_CFG` result 0). Matching the stock subgraph direction (RX) and container
+(GC, global-device position, 4 KB stack) was also tried. The speaker endpoint
+still starves.
+
+Two things measured along the way:
+- The TDM bit clock really is enabled during playback (debugfs
+  `LPASS_CLK_ID_TER_TDM_IBIT` enable=1, 12288000 Hz), and the endpoint
+  underruns once per 1 ms frame, so LPASS TDM is running.
+- In the DSP log, `0x0100100F`/`0x01001010` are `PRM_CMD_REQUEST/RELEASE_HW_RSC`,
+  not graph commands.
+
+A stub-codec test (speaker link on `linux,spdif-dit` instead of the amps) oopses
+in `qcom_snd_sdw_startup` and wedges the card, so it cannot separate DSP from amp
+timing without first guarding that path.

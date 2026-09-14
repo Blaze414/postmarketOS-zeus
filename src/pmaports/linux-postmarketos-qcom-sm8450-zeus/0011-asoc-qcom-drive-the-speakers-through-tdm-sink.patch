@@ -9,7 +9,6 @@ it at 8 x 32-bit slots with the TER_TDM_IBIT clock at rate * 32 * 8.
 Adds PARAM_ID_TDM_INTF_CFG for TDM_SINK, TDM dai ops (tdm slots, bit clock
 vote, format), the TER_TDM_IBIT PRM clock, and the machine-driver setup:
 S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
-
 --- a/sound/soc/qcom/qdsp6/q6prm-clocks.c
 +++ b/sound/soc/qcom/qdsp6/q6prm-clocks.c
 @@ -24,6 +24,7 @@
@@ -30,17 +29,22 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  #define MODULE_ID_I2S_SOURCE		0x0700100B
  #define MODULE_ID_DATA_LOGGING		0x0700101A
  #define MODULE_ID_AAC_DEC		0x0700101F
-@@ -451,7 +452,28 @@
- 
+@@ -452,6 +453,33 @@
  #define CONFIG_I2S_WS_SRC_EXTERNAL		0x0
  #define CONFIG_I2S_WS_SRC_INTERNAL		0x1
-+
+ 
 +#define PARAM_ID_TDM_INTF_CFG			0x0800101B
++/* SPF pcm_tdm_api.h: struct param_id_tdm_lane_cfg_t */
++#define PARAM_ID_TDM_LANE_CFG			0x0800106A
++struct param_id_tdm_lane_cfg {
++	uint16_t lane_mask;
++	uint16_t reserved;
++} __packed;
 +#define TDM_SYNC_SRC_INTERNAL			0x1
 +#define TDM_LONG_SYNC_MODE			1
 +#define TDM_SYNC_INVERT				1
 +#define TDM_DATA_DELAY_1_BCLK_CYCLE		1
- 
++
 +/* SPF pcm_tdm_api.h: struct param_id_tdm_intf_cfg_t */
 +struct param_id_tdm_intf_cfg {
 +	uint32_t lpaif_type;
@@ -59,7 +63,7 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  #define PARAM_ID_I2S_INTF_CFG			0x08001019
  struct param_id_i2s_intf_cfg {
  	uint32_t lpaif_type;
-@@ -759,6 +781,9 @@
+@@ -759,6 +787,9 @@
  	u32	channel_allocation;
  	u32	sd_line_mask;
  	int	fmt;
@@ -71,7 +75,7 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  };
 --- a/sound/soc/qcom/qdsp6/audioreach.c
 +++ b/sound/soc/qcom/qdsp6/audioreach.c
-@@ -152,6 +152,13 @@
+@@ -152,6 +152,20 @@
  
  #define APM_I2S_INTF_CFG_PSIZE ALIGN(sizeof(struct apm_i2s_module_intf_cfg), 8)
  
@@ -82,10 +86,17 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
 +
 +#define APM_TDM_INTF_CFG_PSIZE ALIGN(sizeof(struct apm_tdm_module_intf_cfg), 8)
 +
++struct apm_tdm_module_lane_cfg {
++	struct apm_module_param_data param_data;
++	struct param_id_tdm_lane_cfg cfg;
++} __packed;
++
++#define APM_TDM_LANE_CFG_PSIZE ALIGN(sizeof(struct apm_tdm_module_lane_cfg), 8)
++
  struct apm_module_hw_ep_mf_cfg {
  	struct apm_module_param_data param_data;
  	struct param_id_hw_ep_mf mf;
-@@ -938,6 +945,74 @@
+@@ -938,7 +952,92 @@
  	return rc;
  }
  EXPORT_SYMBOL_GPL(audioreach_compr_set_param);
@@ -104,7 +115,9 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
 +	struct apm_module_frame_size_factor_cfg *fs_cfg;
 +	struct apm_module_param_data *param_data;
 +	struct apm_tdm_module_intf_cfg *intf_cfg;
++	struct apm_tdm_module_lane_cfg *lane_cfg;
 +	struct apm_module_hw_ep_mf_cfg *hw_cfg;
++	int lc_sz = APM_TDM_LANE_CFG_PSIZE;
 +	int ic_sz = APM_TDM_INTF_CFG_PSIZE;
 +	int ep_sz = APM_HW_EP_CFG_PSIZE;
 +	int fs_sz = APM_FS_CFG_PSIZE;
@@ -112,7 +125,7 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
 +	void *p;
 +	int rc;
 +
-+	pkt = audioreach_alloc_apm_cmd_pkt(ic_sz + ep_sz + fs_sz, APM_CMD_SET_CFG, 0);
++	pkt = audioreach_alloc_apm_cmd_pkt(ic_sz + lc_sz + ep_sz + fs_sz, APM_CMD_SET_CFG, 0);
 +	if (IS_ERR(pkt))
 +		return PTR_ERR(pkt);
 +
@@ -133,7 +146,22 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
 +	intf_cfg->cfg.ctrl_invert_sync_pulse = TDM_SYNC_INVERT;
 +	intf_cfg->cfg.ctrl_sync_data_delay = TDM_DATA_DELAY_1_BCLK_CYCLE;
 +
++	/*
++	 * Which serial data line the port drives. Without it the endpoint has
++	 * no lane to put samples on: the graph opens, but the stream never
++	 * delivers into it. The stock ACDB carries PARAM_ID_TDM_LANE_CFG = 2
++	 * for the speaker TDM sink - bit 1, i.e. mi2s2_data1 (gpio124). A
++	 * topology SD line index, when present, takes precedence.
++	 */
 +	p += ic_sz;
++	lane_cfg = p;
++	param_data = &lane_cfg->param_data;
++	param_data->module_instance_id = module->instance_id;
++	param_data->param_id = PARAM_ID_TDM_LANE_CFG;
++	param_data->param_size = lc_sz - APM_MODULE_PARAM_DATA_SIZE;
++	lane_cfg->cfg.lane_mask = module->sd_line_idx ? BIT(module->sd_line_idx - 1) : BIT(1);
++
++	p += lc_sz;
 +	hw_cfg = p;
 +	param_data = &hw_cfg->param_data;
 +	param_data->module_instance_id = module->instance_id;
@@ -151,16 +179,17 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
 +	param_data->param_id = PARAM_ID_HW_EP_FRAME_SIZE_FACTOR;
 +	param_data->param_size = fs_sz - APM_MODULE_PARAM_DATA_SIZE;
 +	fs_cfg->frame_size_factor = 1;
-+
+ 
 +	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
 +	kfree(pkt);
 +
 +	return rc;
 +}
- 
++
  static int audioreach_i2s_set_media_format(struct q6apm_graph *graph,
  					   struct audioreach_module *module,
-@@ -1251,6 +1326,9 @@
+ 					   struct audioreach_module_config *cfg)
+@@ -1251,6 +1350,9 @@
  	case MODULE_ID_I2S_SINK:
  		rc = audioreach_i2s_set_media_format(graph, module, cfg);
  		break;
