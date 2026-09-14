@@ -311,3 +311,34 @@ Two things measured along the way:
 A stub-codec test (speaker link on `linux,spdif-dit` instead of the amps) oopses
 in `qcom_snd_sdw_startup` and wedges the card, so it cannot separate DSP from amp
 timing without first guarding that path.
+
+## Amp timing and graph start order: both ruled out
+
+- **SoundWire stream on non-SoundWire backends.** `qcom_snd_sdw_startup()` was
+  run for the MI2S/TDM speaker link too; with a codec DAI that has no ops it
+  NULL-dereferences inside `snd_soc_dai_set_stream()` and leaves the card lock
+  held (every later `amixer` stuck in D state). Patch 0011 now skips the
+  SoundWire stream for MI2S/TDM backends.
+- **Amps out of the link.** With the speaker link pointed at a
+  `linux,spdif-dit` stub instead of the four CS35L41s, the TDM endpoint still
+  starves (22 underruns, 2 buffer-dones). The amps' I2C setup delay is not the
+  cause.
+- **Graph start order.** 6.13 starts the backend graph from `prepare`, before
+  the stream graph; mainline starts it from `trigger START`.
+  `0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch` backports that
+  (headphones still flow, so trigger reaches the backend). Speakers still
+  starve, with S32 and with S16 on the backend.
+
+With amps, clocks, lane, format, start order and container/subgraph properties
+all matched or ruled out, the speaker subgraph differs from the working
+headphone one only in the endpoint module (TDM_SINK on LPAIF tertiary) and the
+modules stock places ahead of it. Stock's device chain starts with
+`0x07001010`/`0x07001015`/SPLITTER/MUX_DEMUX, none of which exist in this
+topology.
+
+## "Headphones" is not audible either
+
+The phone has no 3.5 mm jack. wcd938x's headphone output only reaches a USB-C
+analog dongle through the Type-C audio switch (`typec-mux@42` on i2c), which has
+to enter audio-accessory mode. Nothing drives that yet, so the headphone path
+consuming data in the DSP does not mean sound comes out of a dongle.

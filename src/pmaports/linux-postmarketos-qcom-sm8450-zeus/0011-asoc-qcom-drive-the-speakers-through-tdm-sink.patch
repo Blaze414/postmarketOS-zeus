@@ -250,7 +250,51 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
  	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
  		/*
-@@ -104,6 +105,9 @@
+@@ -81,6 +82,33 @@
+ 	return qcom_snd_wcd_jack_setup(rtd, &data->jack, &data->jack_setup);
+ }
+ 
++/*
++ * MI2S and TDM backends are not SoundWire. Allocating a SoundWire stream for
++ * them is pointless, and on a codec DAI without ops (a stub codec) it is a
++ * NULL dereference inside snd_soc_dai_set_stream().
++ */
++static bool sc8280xp_is_sdw_backend(int id)
++{
++	switch (id) {
++	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
++	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
++	case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
++		return false;
++	default:
++		return true;
++	}
++}
++
++static int sc8280xp_snd_startup(struct snd_pcm_substream *substream)
++{
++	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
++
++	if (!sc8280xp_is_sdw_backend(snd_soc_rtd_to_cpu(rtd, 0)->id))
++		return 0;
++
++	return qcom_snd_sdw_startup(substream);
++}
++
+ static void sc8280xp_snd_shutdown(struct snd_pcm_substream *substream)
+ {
+ 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+@@ -89,7 +117,8 @@
+ 	struct sdw_stream_runtime *sruntime = pdata->sruntime[cpu_dai->id];
+ 
+ 	pdata->sruntime[cpu_dai->id] = NULL;
+-	sdw_release_stream(sruntime);
++	if (sruntime)
++		sdw_release_stream(sruntime);
+ }
+ 
+ static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+@@ -104,6 +133,9 @@
  	rate->min = rate->max = 48000;
  	channels->min = 2;
  	channels->max = 2;
@@ -260,7 +304,7 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  	switch (cpu_dai->id) {
  	case TX_CODEC_DMA_TX_0:
  	case TX_CODEC_DMA_TX_1:
-@@ -125,14 +129,11 @@
+@@ -125,14 +157,11 @@
   * PLL locked to SCLK and produces silence until that PLL is told what SCLK is.
   */
  static int sc8280xp_snd_mi2s_set_sysclk(struct snd_soc_pcm_runtime *rtd,
@@ -276,7 +320,7 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  	/* Vote the LPASS bit clock in the DSP before the graph is opened. */
  	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_cpu(rtd, 0), 0, sclk,
  				     SND_SOC_CLOCK_OUT);
-@@ -170,7 +171,38 @@
+@@ -170,7 +199,38 @@
  	switch (cpu_dai->id) {
  	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
  	case QUINARY_MI2S_RX ... QUINARY_MI2S_TX:
@@ -316,6 +360,15 @@ S32 on the backend, slots 0/1, per-amp channel from the sound-name-prefix.
  	default:
  		break;
  	}
+@@ -201,7 +261,7 @@
+ }
+ 
+ static const struct snd_soc_ops sc8280xp_be_ops = {
+-	.startup = qcom_snd_sdw_startup,
++	.startup = sc8280xp_snd_startup,
+ 	.shutdown = sc8280xp_snd_shutdown,
+ 	.hw_params = sc8280xp_snd_hw_params,
+ 	.hw_free = sc8280xp_snd_hw_free,
 --- a/sound/soc/qcom/qdsp6/q6prm.h
 +++ b/sound/soc/qcom/qdsp6/q6prm.h
 @@ -13,6 +13,8 @@

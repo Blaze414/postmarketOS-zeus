@@ -1,0 +1,95 @@
+ASoC: qcom: q6apm-lpass-dais: start the backend graph on trigger, not prepare
+
+Backport of mainline's behaviour. In 6.13 the backend graph is started from
+prepare, before the frontend stream graph that feeds it is prepared. A codec
+DMA endpoint tolerates that; the Xiaomi 12 Pro's TDM speaker endpoint does not:
+it starts with no input media format, underruns on every 1 ms frame
+(media_format_set: 0) and the stream never delivers a sample, while the same
+sequence to headphones plays. Start the graph from TRIGGER_START instead.
+
+--- a/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
++++ b/sound/soc/qcom/qdsp6/q6apm-lpass-dais.c
+@@ -212,13 +212,7 @@
+ 		goto err;
+ 	}
+ 
+-	rc = q6apm_graph_start(dai_data->graph[dai->id]);
+-	if (rc < 0) {
+-		dev_err(dai->dev, "fail to start APM port %x\n", dai->id);
+-		goto err;
+-	}
+-	dai_data->is_port_started[dai->id] = true;
+-
++	/* Started from trigger, once the stream feeding this port is running. */
+ 	return 0;
+ err:
+ 	q6apm_graph_close(dai_data->graph[dai->id]);
+@@ -296,12 +290,44 @@
+ 	return 0;
+ }
+ 
++/*
++ * Backport of mainline's move of the backend graph start from prepare to
++ * trigger. Starting a hardware endpoint before the stream graph that feeds it
++ * is prepared leaves it running with no input media format: a TDM sink then
++ * underruns forever with media_format_set: 0 and the stream never delivers.
++ */
++static int q6apm_lpass_dai_trigger(struct snd_pcm_substream *substream, int cmd,
++				   struct snd_soc_dai *dai)
++{
++	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
++	int ret = 0;
++
++	switch (cmd) {
++	case SNDRV_PCM_TRIGGER_START:
++	case SNDRV_PCM_TRIGGER_RESUME:
++	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
++		if (!dai_data->is_port_started[dai->id]) {
++			ret = q6apm_graph_start(dai_data->graph[dai->id]);
++			if (ret < 0)
++				dev_err(dai->dev, "Failed to start APM port %d\n", dai->id);
++			else
++				dai_data->is_port_started[dai->id] = true;
++		}
++		break;
++	default:
++		break;
++	}
++
++	return ret;
++}
++
+ static const struct snd_soc_dai_ops q6dma_ops = {
+ 	.prepare	= q6apm_lpass_dai_prepare,
+ 	.startup	= q6apm_lpass_dai_startup,
+ 	.shutdown	= q6apm_lpass_dai_shutdown,
+ 	.set_channel_map  = q6dma_set_channel_map,
+ 	.hw_params        = q6dma_hw_params,
++	.trigger	= q6apm_lpass_dai_trigger,
+ };
+ 
+ static const struct snd_soc_dai_ops q6i2s_ops = {
+@@ -320,6 +346,7 @@
+ 	 * waiting for one. q6hdmi_ops has carried this op all along.
+ 	 */
+ 	.set_fmt	= q6i2s_set_fmt,
++	.trigger	= q6apm_lpass_dai_trigger,
+ };
+ 
+ static int q6tdm_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+@@ -343,6 +370,7 @@
+ 	.hw_params	= q6dma_hw_params,
+ 	.set_fmt	= q6i2s_set_fmt,
+ 	.set_tdm_slot	= q6tdm_set_tdm_slot,
++	.trigger	= q6apm_lpass_dai_trigger,
+ };
+ 
+ static const struct snd_soc_dai_ops q6hdmi_ops = {
+@@ -351,6 +379,7 @@
+ 	.shutdown	= q6apm_lpass_dai_shutdown,
+ 	.hw_params	= q6hdmi_hw_params,
+ 	.set_fmt	= q6i2s_set_fmt,
++	.trigger	= q6apm_lpass_dai_trigger,
+ };
+ 
+ static const struct snd_soc_component_driver q6apm_lpass_dai_component = {

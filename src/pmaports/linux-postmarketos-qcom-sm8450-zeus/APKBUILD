@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=37
+pkgrel=41
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -47,6 +47,7 @@ source="
 	0009-asoc-qcom-give-mi2s-backends-a-clock.patch
 	0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
 	0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
+	0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -133,5 +134,6 @@ c37614a0c561893f929594558aadd590d12ffaeaa6b8d9afef7a546a36a30c08b0bd94a19e5fa420
 bd27da92de7f0e161134a0c0a18cf57d9e6a74ed8c599006b79e864d405c02b8da62bb02aea6a10c79838f6132d09580f2c2a5e89e5de4dbf6303c1abd655744  0008-apr-install-the-gpr-callback-before-probing.patch
 65899ce47719537a8b2c19ad0779d6bc96c314acc63b88442e2b7ecd97056942b85c464a881e1956b4d976a3beedd6fb8dbb4208ac5976783c11086a05f84404  0009-asoc-qcom-give-mi2s-backends-a-clock.patch
 fb223f1ee1f8dea9203edd58e24157630a8fd63eea6ee86db1fbc3c352cf03b2c871a1158077dd30e5c0b40ad9ef31b01d324f76a097e95cb59eaa96690060d7  0010-asoc-qcom-vote-the-lpass-i2s-bit-clock.patch
-72639f2bc1d4cde77a3f041ada17e32f2f663a18ee43978ef480bcca3cfe60ca5f912970ae2b376a4c7fd7ca6f05d90fac72f1811ef9806223179f032127f289  0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
+318d77f718e1132ae568183f10f05b72d5f9faacdbe1cfe15c9d2caf736e99012f04f5476de8168c76a7020257873a87da8393c7691e5810820b694233849f11  0011-asoc-qcom-drive-the-speakers-through-tdm-sink.patch
+7c654f0bb11545f0393b70089b22d85cc79e3b6bd5909b7ca22b3dd0c0dcead3ccd4cd754f909eebb3cdc9390481b8ada683adfb43eedeb8de03d730a102f952  0012-asoc-qcom-q6apm-lpass-dais-start-graph-on-trigger.patch
 "
