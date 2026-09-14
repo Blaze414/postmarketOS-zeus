@@ -398,3 +398,35 @@ fixup used `snd_mask_set_format()`, which only adds a bit, so S16 stayed
 selected; the amps (slot width = `params_width`) read the zero half of each
 slot. 0014 drops the fixup and frames the bus at the real sample width
 (16-bit slots, 6.144 MHz); amps and DSP now agree.
+
+## Still silent: the TDM block never frames
+
+Measured, not inferred - TLMM pad input bits read via `/dev/mem` (20000
+samples each) during a 440 Hz tone:
+
+| pin | function | idle | playing |
+|---|---|---|---|
+| gpio121 | mi2s2_sck | 0 | ~50 % high (bit clock runs) |
+| gpio123 | mi2s2_ws | 0 | always 0 |
+| gpio122 | mi2s2_data0 | 0 | always 0 |
+| gpio124 | mi2s2_data1 | 0 | always 0 |
+
+The bit clock toggles only because q6prm votes it; frame sync and data never
+appear. The amps, read over i2c during playback, are healthy (powered,
+unmuted, PLL locked, no fault bits), so they are correctly receiving nothing.
+
+- The apparent flow with the stock blob (0 underruns) was the splitter
+  consuming buffers. The TDM sink never receives an input media format
+  (`media_format_set: 0`) in any chain tried: topology only, stock blob, stock
+  blob without splitter/mux-demux (starves), stock blob with
+  PARAM_ID_MUX_DEMUX_CONFIG/OUT_FORMAT (starves, stream I/O error).
+- A sink that rejects its input media format backs the stream up, which is the
+  original 0-2 buffer-done symptom. Codec DMA accepts the identical MFC output,
+  so the rejection is specific to TDM_SINK's own configuration.
+- `ctrl_data_out_enable = 1` (0015) changed nothing; stock DT uses 0.
+- `PARAM_ID_TDM_INTF_CFG` layout verified against SPF `pcm_tdm_api.h`.
+
+Not yet known: what TDM_SINK checks before accepting a media format. Its
+DSP messages are QShrink-hashed and no ADSP QDB is available. On stock, AGM
+(not the ACDB) sends the TDM interface config; its exact values for this
+backend are the missing reference.

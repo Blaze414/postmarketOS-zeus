@@ -1,0 +1,22 @@
+From: YusufAlZadid <yusufalzadid@gmail.com>
+Subject: [PATCH] ASoC: qcom: audioreach: enable TDM data out
+
+SPF defaults ctrl_data_out_enable to 1; leaving it 0 keeps the TDM data
+line undriven (gpio124 measured flat during playback).
+
+---
+--- a/sound/soc/qcom/qdsp6/audioreach.c	2026-09-15 00:58:59
++++ b/sound/soc/qcom/qdsp6/audioreach.c	2026-09-15 00:58:59
+@@ -991,6 +991,12 @@
+ 	intf_cfg->cfg.lpaif_type = module->hw_interface_type;
+ 	intf_cfg->cfg.intf_idx = module->hw_interface_idx;
+ 	intf_cfg->cfg.sync_src = TDM_SYNC_SRC_INTERNAL;
++	/*
++	 * pcm_tdm_api.h defaults this to TDM_CTRL_DATA_OE_ENABLE; with it
++	 * clear the TDM block never drives its data line and the amps hear
++	 * silence although the endpoint consumes.
++	 */
++	intf_cfg->cfg.ctrl_data_out_enable = 1;
+ 	intf_cfg->cfg.slot_mask = cfg->tdm_slot_mask;
+ 	intf_cfg->cfg.nslots_per_frame = cfg->tdm_slots;
+ 	intf_cfg->cfg.slot_width = cfg->tdm_slot_width;
