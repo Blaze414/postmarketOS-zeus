@@ -651,3 +651,41 @@ alsa_output.platform-sound.HiFi__Headphones__sink  s16le 2ch 48000Hz
 
 This is the wcd938x headphone path. The speakers still need a zeus topology with
 a TDM backend.
+
+## Where audio actually stands
+
+The software path works end to end. With the UCM verb and device set, the PCM
+runs and keeps running:
+
+```
+state: RUNNING   delay: 48000   avail: 0
+```
+
+Data is being accepted by the DSP continuously, the sound server exposes a real
+sink, and speaker-test completes. There is still no audible sound, and the reason
+is not software: this route ends at the wcd938x headphone outputs, HPHL/HPHR, and
+this phone has no headphone jack. The audio is being played correctly into pins
+that go nowhere.
+
+The speakers are four CS35L41 amps on **tertiary** TDM, and reaching them needs
+more than a devicetree change:
+
+* audioreach has no TDM support at all - `audioreach.c` handles I2S, CODEC_DMA,
+  DisplayPort and shared memory, and there is no TDM module id anywhere in the
+  qdsp6 directory. TDM exists only in the older q6afe/APR stack this SoC does not
+  use.
+* I2S is a real alternative, since the pins are muxed as `mi2s2` and
+  `q6apm-lpass-dais` does register MI2S ports with `q6i2s_ops`. But the LPAIF
+  interface index comes from the topology - `intf_cfg->cfg.intf_idx =
+  module->hw_interface_idx`, read from AR_TKN_U32_MODULE_HW_IF_IDX - and the
+  borrowed HDK topology only describes **primary** MI2S (`device16.i2s_rx1`).
+
+So the missing piece is a topology carrying a tertiary MI2S or TDM backend. It
+cannot be produced by editing the devicetree, and cloning the primary MI2S
+backend inside the binary means re-implementing a good part of the ALSA topology
+format - snd_soc_tplg_dapm_widget structures and their private vendor arrays -
+with a real risk of producing something the ADSP rejects. A malformed board file
+already crashed this chip once, with MHI_CB_EE_RDDM at probe.
+
+That is the honest boundary: everything up to the hardware endpoint works, and
+the endpoint the topology can reach is not connected to a speaker on this device.
