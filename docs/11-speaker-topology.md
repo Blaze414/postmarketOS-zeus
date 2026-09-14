@@ -487,3 +487,50 @@ Other dead ends checked: the ACDB's AMDB registration (dynamic DSP modules
 Android registers at boot) lists only aptX/LC3/Elliptic ultrasound modules,
 nothing for TDM (`scripts/acdb/acdbamdb.c`); holding the LPASS codec vote by
 playing headphones at the same time does not make TDM frame.
+
+## Disassembly result: the endpoint is fine; the media format never reaches it
+
+Traced the TDM_SINK (0x0700100E) and CODEC_DMA_SINK (0x07001023) modules in
+`adsp.mbn` with rizin. Module registry is a table of
+`{prev, 2, module_id, vtable}`; each vtable is
+`[ctor, set_prop, ?, set_param, set_input_mf/propagate, process, ...]`.
+CAPI property ids are dispatched through `capi_properties.h`'s enum via a jump
+table at the module's `set_prop`.
+
+Both sinks' CAPI_INPUT_MEDIA_FORMAT_V2 handler applies the **same** check on
+the incoming `capi_standard_data_format_v2_t`:
+
+- `sampling_rate`, word size (from `q_factor`: 15->16, 27->24, else 32) and
+  `num_channels` must equal the endpoint's own configured values;
+- `data_interleaving` must be `CAPI_DEINTERLEAVED_UNPACKED` (2) - byte-for-byte
+  identical between the TDM and codec-DMA sinks (TDM at 0xb0620c8c, codec-DMA at
+  0xb06162d4).
+
+So TDM_SINK is not pickier than the codec-DMA sink that headphones use. And the
+speaker underrun print says `media_format_set: 0`: the sink's input port never
+received a media format at all - it is not rejecting one, none arrives. The
+fault is upstream propagation, not the endpoint.
+
+The only structural difference left between the working and broken paths is what
+sits between the front-end and the endpoint:
+
+- headphones: FE mixer -> CODEC_DMA_SINK (one hop, MF propagates, plays);
+- speakers (this topology): FE mixer -> DATA_LOGGING -> MFC -> TDM_SINK. The MFC
+  has no way in this topology to be given an output media format, so it never
+  propagates one, and the TDM sink downstream stays unconfigured.
+
+That matches every symptom across all experiments (topology, stock blob, stock
+blob minus splitter): whenever an MFC/splitter sits before the endpoint without
+a resolved output MF, the endpoint starves with `media_format_set: 0`; the one
+time data appeared to flow (stock blob, 0 underruns) it was the splitter
+consuming buffers, not the sink.
+
+### Next experiment
+
+Make the speaker back end mirror the headphone back end exactly: front-end
+mixer straight into a single TDM_SINK widget, no DATA_LOGGING and no MFC in the
+device sub-graph (the FE already carries an MFC). If the sink then reports
+`media_format_set: 1` and frames, the internal chain was the whole problem and
+the fix is a one-widget BE. Groundwork: `scripts/acdb/acdbtag.c` already prints
+the exact rate/width/channels the endpoint must be configured with (48000 or
+96000, 24-bit, 2 or 3 ch).
