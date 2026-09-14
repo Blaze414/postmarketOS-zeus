@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=42
+pkgrel=45
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"

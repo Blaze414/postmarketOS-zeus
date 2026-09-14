@@ -351,3 +351,22 @@ hardware: a BLUEANT SOUNDBLADE USB-C speaker registers as card 1 and plays
 through PulseAudio, and USB-C headphones work. This is independent of the ADSP,
 so it is currently the only working audio output on the phone. Passive analog
 USB-C adapters still need the Type-C audio switch driven.
+
+## 96 kHz / 24-bit, as the ACDB calibrates it: still starves
+
+The stock ACDB calibrates the speaker TDM_SINK and the MFC ahead of it at
+96000 Hz / 24-bit. Running the backend that way (fixup to 96 kHz S24 in 32-bit
+slots, bit clock 24.576 MHz) negotiates fine - CS35L41's PLL accepts 24.576 MHz,
+only its clock-monitor table lacks it - and the endpoint still starves (27
+underruns, 2 buffer-dones). Not kept.
+
+What has now been matched or excluded: module ID, interface index, data line
+(lane), bit clock (verified running), sync shape, sample rate and width, graph
+start order, subgraph direction, container type/position/stack, amps (stub
+codec). What has not: the four stock modules ahead of the endpoint and their
+calibration, which is ACDB data 6.13's topology path has no way to carry.
+
+The most direct remaining route is to reproduce the stock graph byte for byte:
+send the ACDB's own GRAPH_OPEN payload, connections and calibration blobs
+(already dumped by scripts/acdb) to the APM from the kernel, bypassing the
+topology for this one backend.
