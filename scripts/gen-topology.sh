@@ -12,7 +12,7 @@
 #
 #   ./scripts/gen-topology.sh
 #
-# Produces, in src/pmaports/device-xiaomi-zeus/:
+# Produces, in src/topology/ (not shipped - see docs/11-speaker-topology.md):
 #   Xiaomi-12-tplg.conf       speakers on SD1 (tert_tdm_dout, gpio124)
 #   Xiaomi-12-sd0-tplg.conf   speakers on SD0 (tert_tdm_din,  gpio122)
 #
@@ -22,7 +22,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$REPO/src/topology/Xiaomi-12.m4"
-OUT="$REPO/src/pmaports/device-xiaomi-zeus"
+OUT="$REPO/src/topology"
 # Pin the macro library. An unpinned clone would silently change what ships.
 UPSTREAM=https://github.com/linux-msm/audioreach-topology.git
 COMMIT=main

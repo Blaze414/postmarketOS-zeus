@@ -150,3 +150,43 @@ A reboot, not a reflash.
   (straight through) and `Analog PCM Volume` is held at 10 of a possible 20.
 
 [linux-msm/audioreach-topology]: https://github.com/linux-msm/audioreach-topology
+
+## Outcome on hardware: rejected by the DSP, and reverted
+
+Flashed and tested. The backend exists and DAPM routes to it, but the ADSP
+refuses the subgraph at `APM_CMD_GRAPH_OPEN` (`Error (1) Processing 0x01001000`),
+the amps then time out waiting for a clock (`cs35l41: Enable(1) failed: -110`),
+and the failed open poisons the APM badly enough that the headphone path
+(`RX_CODEC_DMA_RX_0`) fails the same way. Same kernel, topology swapped back to
+the HDK's: 0 DSP errors and a real sink again. So this topology was a net
+regression and is **not shipped**; its sources stay in `src/topology/`.
+
+Each suspect was changed alone, one reboot each, with the Speaker UCM device
+enabled so the backend was actually opened:
+
+| variant | GRAPH_OPEN failures |
+|---|---|
+| SD1 (`SD_LINE_IDX 2`) | rejected |
+| SD0 (`SD_LINE_IDX 1`) | rejected |
+| SD0 + `HW_IF_IDX 0` - token-for-token the primary block | rejected |
+| SD0 + `MODULE_ID_AUDIO_IF_SINK 0x0700117C` | rejected (205) |
+
+Caution for anyone repeating this: counting errors a few seconds after boot
+reads 0 for every variant, because PulseAudio has not retried yet. The first
+AUDIO_IF reading looked like success for exactly that reason.
+
+With the SD line, interface index and module id all ruled out, the tertiary
+block differs from the primary one only in its instance ids and DAI index. Every
+path that works on this device is CODEC_DMA; no I2S subgraph - primary included
+- has ever been shown to open here. The open question is therefore whether this
+vendor SPF build instantiates LPASS I2S from a dynamic graph at all, which is not
+something more topology variants can answer.
+
+## Also found: the post-install never ran
+
+The `-openrc` post-install is recorded in the rootfs (`scripts.tar.gz`) but
+never executed during `pmbootstrap install`. That one silent miss removed the
+qbootctl runlevel, the OSK autostart and the notch overlay. The device package
+now ships those as plain files and symlinks, plus
+`/etc/modules-load.d/zeus.conf` for `fts_touch_spi`, which was never being
+autoloaded. `pd-mapper` was retried and is still a dead end.

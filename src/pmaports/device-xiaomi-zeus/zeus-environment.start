@@ -1,0 +1,6 @@
+#!/bin/sh
+# Display cutout overlay for gmobile. This has to be in /etc/environment
+# because PAM hands it to phoc at login, and phoc is respawned without any
+# wrapper's environment. Idempotent; runs every boot from the local service.
+LINE='G_RESOURCE_OVERLAYS=/mobi/phosh/gmobile/devices/display-panels/xiaomi,zeus.json=/usr/share/gmobile/devices/display-panels/xiaomi,zeus.json'
+grep -qF "$LINE" /etc/environment 2>/dev/null || echo "$LINE" >> /etc/environment

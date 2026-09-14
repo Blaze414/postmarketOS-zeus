@@ -1,0 +1,9 @@
+[Desktop Entry]
+# stevia's own desktop file says OnlyShowIn=Phosh, but this session reports
+# XDG_CURRENT_DESKTOP=GNOME, so autostart skipped it and tapping a text field
+# never raised a keyboard. Same name as stevia's file so it overrides it.
+Name=Phosh OSK
+Type=Application
+Exec=/usr/bin/phosh-osk-stevia --allow-replacement
+NoDisplay=true
+X-GNOME-AutoRestart=true
