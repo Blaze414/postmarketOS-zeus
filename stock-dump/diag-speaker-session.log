@@ -1,0 +1,384 @@
+[ssid 7 QSR 0x92] hash=6ec17a35 line=2185 args=['0x1', '0x1', '0xc000', '0xc063']
+[ssid 45099] :44532 
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 123] sns_dae_sensor.c:1472 Diag log mask changed. debug_accel_values: 1 ccd logging enabled: 1 SENSOR_API: 0 HW_INTERRUPT: 0
+[ssid 7 QSR 0x92] hash=c0490095 line=402 args=['0x0', '0x0']
+[ssid 7] diagcomm_ctrl.c:402 diagcomm_ctrl_send_mult_pkt - No pkt to write 0x0 0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1204 Info: vbat 4252
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:9.960]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530 QSR 0x92] hash=c1420bdf line=299 args=[]
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:10.967]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] battmngr_tech_aggregator.c:600 						20.xm_wls_soc	0			0			0
+[ssid 8530 QSR 0x92] hash=c5271047 line=384 args=[]
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:11.975]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:12.983]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:13.988]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:14.994]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:16.3]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:17.11]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 137
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:18.17]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:19.24]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:20.30]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:21.37]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:22.42]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:23.47]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:24.53]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_BQG_R1.c:1310 Info: batt temp decimal 322
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:25.61]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500 QSR 0x92] hash=70cae291 line=46 args=['0x1001000', '0x0']
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ddd93d5e line=330 args=['0x2000a000', '0x60a0', '0x700101a']
+[ssid 8522 QSR 0x92] hash=d4f2ca95 line=73 args=[]
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:26.68]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500 QSR 0x92] hash=c3b5dc3d line=181 args=['0x2000a000', '0x0', '0x28', '0x0']
+[ssid 8500 QSR 0x92] hash=697caa37 line=454 args=['0x20009000', '0x30', '0xbb80', '0x3e8', '0x3e8', '0x3e8', '0x0']
+[ssid 8522 QSR 0x92] hash=7395f703 line=469 args=['0x1560a8', '0x2ae16', '0x173180', '0x0', '0x14']
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8530] BattMngrTech_BQG_R1.c:1204 Info: vbat 4254
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=60a62466 line=528 args=['0x4b00', '0x0']
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10002 us, marker_eos: 0 , media_format_set: 0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10999 us, marker_eos: 0 , media_format_set: 0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:27.74]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10999 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] gen_cntr_data_handler_island.c:1909 GC  :2000a000: Ext input port 0x2 of Module 0x60a0, actual data len 0 max data len 96 (both per ch). No of underrun after last printed 2.
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10002 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xc5e885', '0x26a2591', '0x1746ba0', '0x9ba']
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:60a2: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 88011363]
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:28.79]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 11000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xbec9c8', '0x240fbf5', '0x155e0e6', '0x6d1']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:60a2: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 88711363]
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10999 us, marker_eos: 0 , media_format_set: 0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:29.85]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:60a2: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 89411363]
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb3591c', '0x21969a5', '0x1356498', '0x5c3']
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10999 us, marker_eos: 0 , media_format_set: 0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:30.90]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10992 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb2df8e', '0x21630f9', '0x130b2b0', '0x589']
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						19.xm_wls		0			0			0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10001 us, marker_eos: 0 , media_format_set: 0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:31.95]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530 QSR 0x92] hash=e024a661 line=948 args=['0x12', '0x3', '0x1']
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10999 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:60a2: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 91511363]
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xf40464', '0x2d31a97', '0x1acd08d', '0xbf0']
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:10, time since prev print: 10000 us, marker_eos: 0 , media_format_set: 0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:32.103]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500] capi_cmn_island.c:149 MODULE:60a2, Underrun detected, Count:11, time since prev print: 10993 us, marker_eos: 0 , media_format_set: 0
+[ssid 8500] gen_cntr_data_handler_island.c:1909 GC  :2000a000: Ext input port 0x2 of Module 0x60a0, actual data len 0 max data len 96 (both per ch). No of underrun after last printed 10.
+[ssid 8500 QSR 0x92] hash=cf76edcd line=1649 args=['0x20009000', '0x7', '0x0']
+[ssid 8522 QSR 0x92] hash=60a62466 line=528 args=['0x0', '0x4b00']
+[ssid 8500 QSR 0x92] hash=13fd1bed line=3318 args=['0x6004', '0x4001', '0x6005', '0x4001']
+[ssid 8522 QSR 0x92] hash=7395f703 line=469 args=['0x13880', '0x2ae14', '0x173180', '0x0', '0x14']
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:33.111]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:35.126]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:36.135]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:37.143]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:38.154]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:39.163]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:40.171]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:41.180]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1310 Info: batt temp decimal 321
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:42.189]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:43.194]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:44.202]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:45.212]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:46.217]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:48.230]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3187 Info: support_soh:0 soh:83, deltaFv:0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:49.238]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 8530 QSR 0x92] hash=c1420bdf line=299 args=[]
+[ssid 8530] battmngr_tech_aggregator.c:600 						6.UserAgg		0			0			0
+[ssid 8530] battmngr_tech_aggregator.c:600 						0.xm_stepper	0			0			0
+[ssid 8530] battmngr_tech_aggregator.c:600 						24.wls_icm_cp	0			0			0
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:50.245]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8500 QSR 0x92] hash=24cce70d line=54 args=['0x100100f']
+[ssid 8500 QSR 0x92] hash=9da56b51 line=101 args=['0x100102c', '0x4007', '0x1', '0x0']
+[ssid 8500 QSR 0x92] hash=c874d39f line=1220 args=['0x100102c', '0x0', '0x4001']
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 8500 QSR 0x92] hash=22d1ec65 line=400 args=['0x2000c000', '0x1', '0x6071']
+[ssid 8522 QSR 0x92] hash=d4f2ca95 line=73 args=[]
+[ssid 8500 QSR 0x92] hash=f2f36f4b line=700 args=['0x2000c000', '0x6070', '0x2', '0x2', '0x2']
+[ssid 8522 QSR 0x92] hash=b7e10b01 line=2852 args=['0x2a3b3', '0x16a657', '0x30d40', '0x5']
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800000']
+[ssid 8522 QSR 0x92] hash=60a62466 line=528 args=['0x4b00', '0x0']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 112113105]
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:52.259]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800002']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 112613105]
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb0cabd', '0x22a5da0', '0x131c136', '0x61e']
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800000']
+[ssid 8500 QSR 0x92] hash=ae52dacd line=41 args=['0x1000000a', '0x6001', '0x400100a', '0xbb800002']
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:53.265]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800002']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 113613105]
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800000']
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb14cce', '0x21ef9f0', '0x1283dbb', '0x50a']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 114113105]
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:54.274]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800002']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 114813105]
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 115113105]
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb0cbe6', '0x21ecfad', '0x12a5279', '0x4cf']
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:55.280]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800002']
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 49
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 115613105]
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800000']
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb0fb10', '0x21a803e', '0x1220e9c', '0x4dd']
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:56.288]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 116313105]
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800003']
+[ssid 8530] ssdev_usb.c:657 Info: ssdev_handle_usbin_fault: un_comp_qc_val=0
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800000']
+[ssid 8500] timer_drift_utils_island.c:188 MODULE:6072: ACC_TMR_DRIFT[0 us], TS[MSW_LSW]: [0, 117113105]
+[ssid 8522 QSR 0x92] hash=68d13399 line=1263 args=['0xb1a0ea', '0x229f7d7', '0x1331abd', '0x589']
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:57.294]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800002']
+[ssid 8500 QSR 0x92] hash=ad4d6edb line=195 args=['0x2000b000', '0x6001', '0x0', '0x5001004', '0xb0d785f0', '0x20', '0xbb800003']
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 8500 QSR 0x92] hash=929e5199 line=1415 args=['0x2000b000', '0x1', '0x6001', '0x1', '0x6002', '0x2', '0x0']
+[ssid 8522 QSR 0x92] hash=60a62466 line=528 args=['0x0', '0x4b00']
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:58.301]Received request: cm_instance=0xb20884a0, client_connect_id=0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 29
+[ssid 122] sns_client_manager_qmi.c:279 [0:1:59.354]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:0.363]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8500 QSR 0x92] hash=24cce70d line=54 args=['0x1001010']
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:1.370]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:2.377]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:3.384]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:4.391]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:5.400]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1310 Info: batt temp decimal 320
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:6.408]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:7.416]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:8.424]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:9.433]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 123
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:10.441]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:11.446]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:12.454]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:13.463]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:14.471]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:15.479]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:16.485]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1310 Info: batt temp decimal 320
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:17.493]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] battmngr_plat_scpqchg_exfg_r1.c:7838 Info: battmngr_plat_scpqchg_exfg_r1_is_otg_enabled::0
+[ssid 8530 QSR 0x92] hash=bd4d0f4e line=1258 args=[]
+[ssid 8530] BattMngrTech_delay_work.c:153 [fg_monitor] delay work will handle
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:18.500]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3187 Info: support_soh:0 soh:83, deltaFv:0
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:19.506]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:20.515]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:21.520]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:23.536]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:24.543]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3187 Info: support_soh:0 soh:83, deltaFv:0
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:26.554]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:27.560]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:28.568]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_BQG_R1.c:1204 Info: vbat 4255
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:29.576]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:30.583]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:31.592]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:32.598]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:33.604]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:34.609]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 172
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:35.618]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:36.626]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530 QSR 0x92] hash=c1420bdf line=299 args=[]
+[ssid 8530] battmngr_tech_aggregator.c:600 						20.xm_wls_soc	0			0			0
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:37.634]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:38.639]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:39.643]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:41.657]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:43.674]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:44.682]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:45.691]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:46.700]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:47.709]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:48.715]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] ssdev_usb.c:657 Info: ssdev_handle_usbin_fault: un_comp_qc_val=0
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:49.720]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 245
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:50.726]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:51.732]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:52.739]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:53.746]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:54.754]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_BQG_R1.c:3495 Info: fg_update_status:fg_id:0
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:55.761]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:56.766]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:57.774]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:58.781]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:2:59.787]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:1234 Info: ibat 221
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:0.795]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:1.802]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:2.810]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_BQG_R1.c:3187 Info: support_soh:0 soh:83, deltaFv:0
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:3.818]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:4.828]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:5.835]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:6.841]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:7.849]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:8.857]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:9.864]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 8530] BattMngrTech_BQG_R1.c:1204 Info: vbat 4266
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:10.870]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:11.875]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 8530] BattMngrTech_BQG_R1.c:1204 Info: vbat 4265
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:12.882]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 8530] battmngr_tech_aggregator.c:600 						17.WlsDebugCli	0			0			0
+[ssid 89 QSR 0x92] hash=b71a7372 line=167 args=[]
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:13.891]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:14.896]Received request: cm_instance=0xb20884a0, client_connect_id=1
+[ssid 8530] BattMngrTech_delay_work.c:250 Info: delay_work_events=2
+[ssid 122] sns_client_manager_qmi.c:279 [0:3:15.901]Received request: cm_instance=0xb20884a0, client_connect_id=1
