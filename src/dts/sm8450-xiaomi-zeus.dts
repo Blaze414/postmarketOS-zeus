@@ -1382,6 +1382,18 @@
 			 * id q6apmdai uses, which is what puts the memory in
 			 * the DSP's address space.
 			 */
+			/*
+			 * The speakers' bit clock. A graph driven from
+			 * userspace has no ASoC backend behind it, so nothing
+			 * turns this on the way q6apm-lpass-dais does for the
+			 * kernel's own paths - and an endpoint with no clock
+			 * accepts a bufferful and then never drains. Held
+			 * through /sys/module/apr/... see audio_pkt.c.
+			 */
+			clocks = <&q6prmcc LPASS_CLK_ID_TER_TDM_IBIT
+				  LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+			clock-names = "tdm-bclk";
+
 			audio_pkt_mem: memory {
 				compatible = "qcom,audio-pkt-mem";
 				iommus = <&apps_smmu 0x1801 0x0>;

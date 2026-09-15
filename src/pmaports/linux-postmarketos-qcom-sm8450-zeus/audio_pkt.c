@@ -35,6 +35,7 @@
  * putting the stream id in the top bits of the address handed to the DSP.
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -83,6 +84,67 @@ struct audio_pkt_dev {
  */
 static struct device *audio_pkt_dma_dev;
 static u32 audio_pkt_sid;
+
+/*
+ * The hardware endpoint's bit clock.
+ *
+ * A graph opened straight from userspace has no ASoC backend behind it, so
+ * nothing votes the interface clock the way q6apm-lpass-dais does for the
+ * kernel's own paths. Without it the endpoint starts, accepts one bufferful
+ * and then never drains - no buffer ever comes back. The DSP configures the
+ * interface itself from the graph; all that is missing is the clock running
+ * at the right rate.
+ *
+ *   echo 1536000 > /sys/module/apr/parameters/tdm_bclk   # 48k x 2ch x 16bit
+ *   echo 0       > /sys/module/apr/parameters/tdm_bclk   # release
+ */
+static struct clk *audio_pkt_bclk;
+static unsigned long audio_pkt_bclk_rate;
+
+static int audio_pkt_set_bclk(const char *val, const struct kernel_param *kp)
+{
+	unsigned long rate;
+	int ret;
+
+	ret = kstrtoul(val, 0, &rate);
+	if (ret)
+		return ret;
+
+	if (!audio_pkt_bclk)
+		return -ENODEV;
+
+	if (audio_pkt_bclk_rate) {
+		clk_disable_unprepare(audio_pkt_bclk);
+		audio_pkt_bclk_rate = 0;
+	}
+
+	if (!rate)
+		return 0;
+
+	ret = clk_set_rate(audio_pkt_bclk, rate);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(audio_pkt_bclk);
+	if (ret)
+		return ret;
+
+	audio_pkt_bclk_rate = rate;
+
+	return 0;
+}
+
+static int audio_pkt_get_bclk(char *buf, const struct kernel_param *kp)
+{
+	return sysfs_emit(buf, "%lu\n", audio_pkt_bclk_rate);
+}
+
+static const struct kernel_param_ops audio_pkt_bclk_ops = {
+	.set = audio_pkt_set_bclk,
+	.get = audio_pkt_get_bclk,
+};
+module_param_cb(tdm_bclk, &audio_pkt_bclk_ops, NULL, 0644);
+MODULE_PARM_DESC(tdm_bclk, "hold the endpoint bit clock at this rate, 0 to release");
 
 struct audio_pkt_buf {
 	struct list_head node;
@@ -604,6 +666,13 @@ static int audio_pkt_probe(struct apr_device *adev)
 	apdev->misc.parent = dev;
 
 	dev_set_drvdata(dev, apdev);
+
+	audio_pkt_bclk = devm_clk_get_optional(dev, "tdm-bclk");
+	if (IS_ERR(audio_pkt_bclk)) {
+		dev_warn(dev, "no endpoint bit clock: %ld\n",
+			 PTR_ERR(audio_pkt_bclk));
+		audio_pkt_bclk = NULL;
+	}
 
 	/* brings up the "memory" child, and with it the DSP buffer allocator */
 	ret = devm_of_platform_populate(dev);

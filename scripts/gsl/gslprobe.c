@@ -33,9 +33,9 @@
 void ar_log_init(void);
 
 #define MAX_KVPS	16
-/* 48 kHz, stereo, 16-bit: 10 ms of audio. */
-#define PERIOD_BYTES	1920
-#define PERIODS		100
+/* 48 kHz, stereo, 16-bit: 100 ms of audio. */
+#define PERIOD_BYTES	19200
+#define PERIODS		40
 /*
  * The tag naming a stream's shared-memory write endpoint. Not defined in
  * graphservices - it comes from the tag list Qualcomm's own clients compile
@@ -195,18 +195,38 @@ static void play_tone(gsl_handle_t graph)
 		frame[i] = frame[i + 1] = v;
 	}
 
-	printf("writing %d periods (%d ms)\n", PERIODS, PERIODS * 10);
-	for (int n = 0; n < PERIODS && !rc; n++) {
-		memset(&buff, 0, sizeof(buff));
-		buff.size = sizeof(frame);
-		buff.addr = (uint8_t *)frame;
-		consumed = 0;
-		rc = gsl_write(graph, SHMEM_ENDPOINT, &buff, &consumed);
-		if (rc)
-			printf("gsl_write failed at period %d: %d\n", n, rc);
+	printf("writing %d periods (%d ms)\n", PERIODS, PERIODS * 100);
+	for (int n = 0, ok = 0, bad = 0; n < PERIODS; n++) {
+		int tries;
+
+		for (tries = 0; tries < 50; tries++) {
+			memset(&buff, 0, sizeof(buff));
+			buff.size = sizeof(frame);
+			buff.addr = (uint8_t *)frame;
+			consumed = 0;
+			rc = gsl_write(graph, SHMEM_ENDPOINT, &buff,
+				       &consumed);
+			if (!rc && consumed)
+				break;
+			/*
+			 * The endpoint consumes in real time, so running out
+			 * of buffers is the normal case, not an error - wait
+			 * for one to come back rather than giving up.
+			 */
+			usleep(2000);
+		}
+		if (rc || !consumed) {
+			if (++bad < 4)
+				printf("write stalled at period %d: rc %d\n",
+				       n, rc);
+			rc = 0;
+		} else {
+			ok++;
+		}
+		if (n == PERIODS - 1)
+			printf("wrote %d/%d periods\n", ok, PERIODS);
 	}
-	if (!rc)
-		printf("wrote all periods OK\n");
+	rc = 0;
 
 	gsl_ioctl(graph, GSL_CMD_STOP, NULL, 0);
 }
@@ -279,7 +299,7 @@ static int32_t open_graph(int nkv, char **kvargs, int dev_nkv, char **devargs)
 	 */
 	memset(&wr, 0, sizeof(wr));
 	wr.buff_size = PERIOD_BYTES;
-	wr.num_buffs = 4;
+	wr.num_buffs = 8;
 	wr.start_threshold = 0;
 	wr.attributes = GSL_DATA_MODE_BLOCKING;
 	rc = gsl_ioctl(graph, GSL_CMD_CONFIGURE_WRITE_PARAMS, &wr, sizeof(wr));
@@ -348,6 +368,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	ar_log_init();
 
 	gsl_get_version(&major, &minor);
