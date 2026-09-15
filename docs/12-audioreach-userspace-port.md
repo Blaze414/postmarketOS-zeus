@@ -534,6 +534,49 @@ media format and prepare all succeed against the real DSP, and stream
 subgraphs start. **Audio does not play**, because no stock device subgraph
 can be started from here - speakers and headphones alike.
 
+## Decoding the DSP's messages: method, and its ceiling
+
+The ADSP QShrink database is not obtainable. It is produced when the firmware
+is built, not shipped with it: the phone carries only the modem's
+(`stock-dump/qdb/`), and none of the failing hashes appear in it, in either
+byte order. So the strings cannot be looked up; they have to be inferred from
+the code that logs them.
+
+That much does work, and the tooling for it is here:
+
+- `scripts/diag/qsraddr.py` - find a hashed message's 12-byte descriptor
+  `{ssid<<16|line, ss_mask, hash}` and report its virtual address.
+- `scripts/diag/qsrxref.py` - find the code that references that address.
+  Hexagon builds a 32-bit constant from a constant-extender plus the following
+  instruction, so the address never appears as four contiguous bytes and a
+  plain search finds nothing. The extender carries imm[31:6]:
+
+  ```
+  0000 | imm[31:20] (bits 27-16) | parse (bits 15-14) | imm[19:6] (bits 13-0)
+  ```
+
+  which locates candidates to within 64 bytes - close enough to disassemble.
+
+Applied to the failing start, all five messages resolve to one code region
+(0xb062b000-0xb062c800), and the call sites have the expected shape:
+
+```
+0xb062bf28   immext(##0xb090d140)
+0xb062bf2c   R1:0 = combine(#0x4,##0xb090d160)    ; R0 = descriptor, R1 = argc
+0xb062bf34   call 0xb0030b20                      ; the logging entry point
+```
+
+Their descriptors sit in a block bracketed by `capi_test_module_utils.c` and
+`gen_topo_ctrl_port_island.c`, so the file is one of Spf's **gen_topo** set -
+the generic topology layer, which is where modules are started. The code
+around the failing message iterates a module list and calls through a vtable
+per module; the message fires with the container handle and module instance
+0x4042 as arguments.
+
+That is as far as inference goes cheaply. Recovering *why* the topology layer
+refuses means reading a few thousand lines of hashed Hexagon assembly, which
+is possible but is its own project.
+
 ## Leads left
 
 - **Persistent calibration - now the leading suspect.** Only non-persistent
