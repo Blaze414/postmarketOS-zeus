@@ -130,8 +130,29 @@ EDITS = [
     ),
     (
         "gsl/src/gsl_graph.c",
+        # GRAPH_START goes out for every subgraph at once and Spf answers with
+        # a single status, so a refusal says nothing about which subgraph is
+        # at fault. GSL_START_ONLY_SG=<index> starts just one of them, leaving
+        # the rest open and prepared: run it once per index and the failing
+        # subgraph names itself.
+        """		for (i = 0; i < gkv_node->num_of_subgraphs; ++i) {
+			sg = gkv_node->sg_array[i];
+			/* send start command only for SGs that are not in START state */
+			if (sg && sg->start_ref_cnt == 0) {""",
+        """		for (i = 0; i < gkv_node->num_of_subgraphs; ++i) {
+			const char *only = getenv("GSL_START_ONLY_SG");
+
+			sg = gkv_node->sg_array[i];
+			if (only && i != (uint32_t)atoi(only))
+				continue;
+			/* send start command only for SGs that are not in START state */
+			if (sg && sg->start_ref_cnt == 0) {
+				GSL_ERR("start: subgraph[%d] = 0x%x", i, sg->sg_id);""",
+    ),
+    (
+        "gsl/src/gsl_graph.c",
         '#include "acdb.h"',
-        '#include <string.h>\n#include "media_fmt_api_basic.h"\n#include "acdb.h"',
+        '#include <string.h>\n#include <stdlib.h>\n#include "media_fmt_api_basic.h"\n#include "acdb.h"',
     ),
     (
         "gsl/src/gsl_graph.c",

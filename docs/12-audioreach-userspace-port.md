@@ -439,15 +439,73 @@ and GRAPH_START still fails. It now starts four subgraphs, the first being
 **b0000002** - the speaker device subgraph, the same one doc 11 found never
 receives a media format, and the one the database has no calibration for.
 
+## Narrowed: it is the device subgraph, on both outputs
+
+`GSL_START_ONLY_SG=<index>` (patch-gs.py) starts one subgraph at a time,
+leaving the rest open and prepared. Against the full speaker use case:
+
+| index | subgraph | START |
+|---|---|---|
+| 0 | **b0000002** (speaker device) | **fails** |
+| 1 | b000000f | ok |
+| 2 | b0000020 | ok |
+| 3 | b000000e | ok |
+
+And against the headphone use case
+(`a1000000=a1000005 a2000000=a2000002 ac000000=ac000003`):
+
+| index | subgraph | START |
+|---|---|---|
+| 0 | **b0000014** (headphone device) | **fails** |
+| 1 | b0000029 | ok |
+| 2 | b0000028 | ok |
+| 3 | b000000e | ok |
+
+So it is **the device subgraph, and only the device subgraph** - and it is
+not TDM-specific. The codec-DMA headphone device subgraph is refused the same
+way, even though the kernel drives that same hardware happily through ALSA.
+Every stream-side subgraph starts.
+
+That is a different shape of problem from doc 11, which found a TDM-only
+fault. Whatever this is, it applies to any stock device subgraph started from
+here.
+
+### Endpoint clocks: asked for, and not the answer
+
+`gsl_request_hw_rsc_config()` on the endpoint (miid 0x4881, MODULE_ID_TDM_SINK)
+returns AR_ENOTEXIST - the database has no hardware-resource configuration
+under that key vector, so there is no per-endpoint clock request to make.
+
+The LPASS core request is more interesting. GSL reports it as a timeout, but
+the trace shows the DSP answering, and granting it:
+
+```
+tx  src 0x2004 dst 0x0002 0100100f   PRM_CMD_REQUEST_HW_RSC
+    ... miid 2, pid 08001032 (PARAM_ID_RSC_HW_CORE), hw_core_id 1
+rx  src 0x0002 dst 0x2004 02001002   PRM_CMD_RSP_REQUEST_HW_RSC
+    ... 08001032 00000000            <- granted
+```
+
+So PRM is reachable from userspace after all and the request succeeds; GSL's
+own bookkeeping misreports it. Since the core was already voted on anyway,
+this changes nothing about START - but it removes "PRM is unreachable" from
+the picture.
+
+Whole-session status after all of the above, with everything else clean:
+
+```
+02001002 08001032 00000000   PRM hw core          granted
+02001005 01001000 00000000   GRAPH_OPEN
+02001005 01001006 00000000   SET_CFG  x2
+02001005 0100100d 00000000   memory map
+02001005 01001001 00000000   GRAPH_PREPARE
+02001005 01001002 00000001   GRAPH_START          <- only failure
+```
+
 ## Leads left
 
-- **Narrow GRAPH_START to one subgraph.** It now starts four at once and the
-  DSP answers with a single status. Opening use cases whose graphs are
-  subsets, or patching GSL to send the subgraph list one id at a time, would
-  say which subgraph is refused. b0000002 is the prime suspect - it is first
-  in the list, it is the speaker device subgraph, and the database has no
-  calibration for it.
-- **Persistent calibration.** Only non-persistent calibration is being sent.
+- **Persistent calibration - now the leading suspect.** Only non-persistent
+  calibration is being sent.
   `AcdbCmdGetProcSubgraphCalDataPersist` reports "No calibration found" for
   b0000002 and b0000006, and the CKV lookup that would select it fails with
   error 17. A device subgraph with no calibration at all may simply be

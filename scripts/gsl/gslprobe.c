@@ -92,6 +92,45 @@ static int32_t vote_lpass_core(void)
  * The payload is SPF's out-of-band form, {miid, pid, size, error_code}
  * followed by the parameter.
  */
+/*
+ * Ask the DSP's resource manager for the hardware endpoint's clocks.
+ *
+ * Starting a subgraph one at a time shows that only the *device* subgraph is
+ * refused - b0000002 for the speakers, b0000014 for the headphones - while
+ * every stream-side subgraph starts. The difference between them is hardware:
+ * a device subgraph has to bring up an endpoint, and an endpoint needs its
+ * clocks running. Under mainline the kernel's q6prm does that when ASoC
+ * brings a backend up; in the Android stack the client asks for it, which is
+ * what this does. The configuration comes from the database, keyed by the
+ * endpoint's module instance.
+ */
+#define TAG_DEVICE_HW_EP 0xC0000004
+
+static int32_t request_endpoint_clocks(const struct gsl_key_vector *gkv)
+{
+	struct gsl_module_id_info *info = NULL;
+	uint32_t info_size = 0;
+	int32_t rc;
+
+	rc = gsl_get_tagged_module_info(gkv, TAG_DEVICE_HW_EP, &info,
+					&info_size);
+	if (rc || !info || !info->num_modules) {
+		printf("no hardware endpoint tagged in this graph: %d\n", rc);
+		return rc ? rc : -1;
+	}
+
+	printf("hw endpoint miid 0x%x (module 0x%x)\n",
+	       info->module_entry[0].module_iid,
+	       info->module_entry[0].module_id);
+
+	rc = gsl_request_hw_rsc_config(info->module_entry[0].module_iid, gkv);
+	printf("gsl_request_hw_rsc_config: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+
+	free(info);
+
+	return rc;
+}
+
 static int32_t set_media_format(gsl_handle_t graph,
 				const struct gsl_key_vector *gkv)
 {
@@ -256,6 +295,8 @@ static int32_t open_graph(int nkv, char **kvargs, int dev_nkv, char **devargs)
 	}
 
 	set_media_format(graph, &gkv);
+
+	request_endpoint_clocks(&gkv);
 
 	rc = gsl_ioctl(graph, GSL_CMD_PREPARE, NULL, 0);
 	printf("gsl_ioctl PREPARE: %d (%s)\n", rc, rc ? "FAILED" : "OK");
