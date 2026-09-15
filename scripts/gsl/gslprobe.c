@@ -24,13 +24,93 @@
 #include <unistd.h>
 
 #include "gsl_intf.h"
+#include "gsl_hw_rsc_intf.h"
+#include "prm_api.h"
+#include "hw_core_api.h"
 
 void ar_log_init(void);
 
-#define MAX_KVPS 16
+#define MAX_KVPS	16
+/* 48 kHz, stereo, 16-bit: 10 ms of audio. */
+#define PERIOD_BYTES	1920
+#define PERIODS		100
+/*
+ * The tag naming a stream's shared-memory write endpoint. Not defined in
+ * graphservices - it comes from the tag list Qualcomm's own clients compile
+ * in - but it is stable across AudioReach releases.
+ */
+#define SHMEM_ENDPOINT	0xC0000001
+
+/*
+ * Vote the LPASS hardware core on, through the DSP's proxy resource manager.
+ *
+ * Nothing else does it on this system. In the Android stack the client (AGM)
+ * makes this request itself before starting a graph; under mainline the
+ * kernel's q6prm does the equivalent when ASoC brings a path up, but a graph
+ * opened straight from userspace goes through neither. A hardware endpoint
+ * cannot start with its core unpowered, which fits what is seen: every graph
+ * opens and prepares, and every graph fails to start.
+ *
+ * gsl_request_hw_rsc_custom_config() takes {miid, pid, size, error_code}
+ * followed by the parameter payload.
+ */
+static int32_t vote_lpass_core(void)
+{
+	struct {
+		uint32_t miid;
+		uint32_t pid;
+		uint32_t size;
+		uint32_t error_code;
+		struct hw_core_request_t req;
+	} p;
+	int32_t rc;
+
+	memset(&p, 0, sizeof(p));
+	p.miid = PRM_MODULE_INSTANCE_ID;
+	p.pid = PARAM_ID_RSC_HW_CORE;
+	p.size = sizeof(p.req);
+	p.req.hw_core_id = HW_CORE_ID_LPASS;
+
+	rc = gsl_request_hw_rsc_custom_config((const uint8_t *)&p, sizeof(p),
+					      NULL, NULL);
+	printf("LPASS core vote: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+
+	return rc;
+}
+
+static void play_tone(gsl_handle_t graph)
+{
+	static int16_t frame[PERIOD_BYTES / 2];
+	struct gsl_buff buff;
+	uint32_t consumed;
+	int32_t rc = 0;
+
+	/* ~440 Hz square wave: audible, and trivial to generate. */
+	for (unsigned i = 0; i < PERIOD_BYTES / 2; i += 2) {
+		int16_t v = ((i / 2) / 54) % 2 ? 8000 : -8000;
+
+		frame[i] = frame[i + 1] = v;
+	}
+
+	printf("writing %d periods (%d ms)\n", PERIODS, PERIODS * 10);
+	for (int n = 0; n < PERIODS && !rc; n++) {
+		memset(&buff, 0, sizeof(buff));
+		buff.size = sizeof(frame);
+		buff.addr = (uint8_t *)frame;
+		consumed = 0;
+		rc = gsl_write(graph, SHMEM_ENDPOINT, &buff, &consumed);
+		if (rc)
+			printf("gsl_write failed at period %d: %d\n", n, rc);
+	}
+	if (!rc)
+		printf("wrote all periods OK\n");
+
+	gsl_ioctl(graph, GSL_CMD_STOP, NULL, 0);
+}
 
 static int32_t open_graph(int nkv, char **kvargs)
 {
+	struct gsl_cmd_configure_read_write_params wr;
 	struct gsl_key_value_pair kvp[MAX_KVPS];
 	struct gsl_key_vector gkv;
 	gsl_handle_t graph = NULL;
@@ -50,12 +130,31 @@ static int32_t open_graph(int nkv, char **kvargs)
 	gkv.num_kvps = nkv;
 	gkv.kvp = kvp;
 
+	vote_lpass_core();
+
 	/* No calibration key vector: the graph's own defaults are enough to
 	 * see whether the endpoint gets configured at all. */
 	rc = gsl_open(&gkv, NULL, &graph);
 	printf("gsl_open: %d (%s)\n", rc, rc ? "FAILED" : "OK");
 	if (rc)
 		return rc;
+
+	/*
+	 * Configure the write path before starting. A playback graph's shared
+	 * memory endpoint has no buffers until this is done, and GSL also uses
+	 * it to decide when to issue START to the DSP - which is why a graph
+	 * that opens and prepares cleanly can still refuse to start.
+	 * start_threshold 0 asks for an immediate start rather than waiting on
+	 * buffered data.
+	 */
+	memset(&wr, 0, sizeof(wr));
+	wr.buff_size = PERIOD_BYTES;
+	wr.num_buffs = 4;
+	wr.start_threshold = 0;
+	wr.attributes = GSL_DATA_MODE_BLOCKING;
+	rc = gsl_ioctl(graph, GSL_CMD_CONFIGURE_WRITE_PARAMS, &wr, sizeof(wr));
+	printf("gsl_ioctl CONFIGURE_WRITE_PARAMS: %d (%s)\n", rc,
+	       rc ? "FAILED" : "OK");
 
 	rc = gsl_ioctl(graph, GSL_CMD_PREPARE, NULL, 0);
 	printf("gsl_ioctl PREPARE: %d (%s)\n", rc, rc ? "FAILED" : "OK");
@@ -65,13 +164,8 @@ static int32_t open_graph(int nkv, char **kvargs)
 		printf("gsl_ioctl START: %d (%s)\n", rc, rc ? "FAILED" : "OK");
 	}
 
-	if (!rc) {
-		/* Hold it running for a moment so the DSP's own logs show the
-		 * endpoint's steady state, not just its setup. */
-		printf("graph running, holding 2s\n");
-		sleep(2);
-		gsl_ioctl(graph, GSL_CMD_STOP, NULL, 0);
-	}
+	if (!rc)
+		play_tone(graph);
 
 	gsl_close(graph);
 	printf("gsl_close done\n");

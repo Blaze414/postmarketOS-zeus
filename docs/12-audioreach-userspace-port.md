@@ -213,15 +213,76 @@ GRAPH_START is then refused with a bare AR_EFAILED and no detail.
 So the premise holds further than milestone 1 could show, and the remaining
 failure is a new one, not the old `media_format_set:0` wall.
 
-## Open questions for milestone 3
+## Chasing GRAPH_START
 
-- **Why GRAPH_START fails.** The status is generic and the kernel log says
-  nothing (GSL bypasses q6apm entirely). The DSP's own QShrink log over diag
-  is the way to find out which module refuses - the tooling from doc 11
-  (`scripts/diag`, `diagcat.py`) already exists.
-- **Calibration.** ACDB's own CKV lookup fails with error 17 ("CKV key table
-  and value table offsets") and no persistent calibration is found for
-  subgraphs b0000002 or b0000006. Some modules may well refuse to start
-  uncalibrated. Only one ACDB file is being loaded; Android passes several.
-- **Clocks.** No traffic was seen on GSL's hardware resource manager port
-  (0x2004), so nothing has voted the LPASS TDM bit clock from this side.
+### The DSP's log does not say
+
+Captured the ADSP's F3/QShrink stream across a start (`scripts/diag`). SSID
+8500 messages around the failure are all hashed:
+
+```
+hash=70cae291 line=46   args=['0x1001000', '0xe000']     # GRAPH_OPEN received
+hash=9d598de9 line=2931 args=['0x4007', '0x8001026']     # PARAM_ID_MODULE_ENABLE
+hash=64d6db7b line=365  args=['0x10016000', '0x4015', '0x1']
+hash=fb2c882e line=367  args=['0x10016000', '0x2e', '0x0']
+```
+
+The only QShrink database on the phone is the modem's, and none of these
+hashes are in it. `scripts/diag/qsrfind.py` locates a hash's 12-byte log
+descriptor `{ssid<<16|line, ss_mask, hash}` in `adsp.mbn` and prints its
+neighbours, in the hope that a nearby call site in the same source file kept
+a real format pointer. For this region none did - the whole block is hashed.
+Resolving these would mean tracing the code that references each descriptor,
+which is where doc 11's disassembly work ended up too.
+
+### Differential testing says plenty
+
+Far more informative, and much cheaper: **run the same probe against a graph
+that has nothing to do with the speakers.** The headphone playback graph
+(`a1000000=a1000003 a2000000=a2000002`) behaves *identically* - open,
+configure and prepare succeed, start fails with the same bare error.
+
+So GRAPH_START is not the DSP refusing the speaker path. Something about
+this environment stops **every** graph from starting, and doc 11's picture -
+that the TDM endpoint is uniquely unreachable - does not carry over here.
+
+Two candidates ruled out along the way:
+
+- **The data path.** Adding `GSL_CMD_CONFIGURE_WRITE_PARAMS` before prepare
+  succeeds, so the shared-memory write endpoint provisions correctly. The
+  buffers from milestone 2 work for data, not just for control.
+- **Coexistence.** Running `aplay` at the same time makes GSL's GRAPH_OPEN
+  fail instead - the DSP does enforce exclusivity, which incidentally
+  confirms that a successful open really does claim the path.
+
+### Where it stands: nothing has powered the audio core
+
+In the Android stack the client asks the DSP's proxy resource manager for
+hardware resources before starting a graph -
+`gsl_request_hw_rsc_config()` / `gsl_request_hw_rsc_custom_config()` in
+`gsl/hw_rsc_api/gsl_hw_rsc_intf.h`. Nothing inside GSL calls these; they are
+the client's job. Under mainline, q6prm does the equivalent when ASoC brings
+a path up. A graph opened straight from userspace goes through neither, so
+the LPASS core is never voted on - and a hardware endpoint cannot start with
+its core unpowered. That fits the symptom exactly: every graph opens and
+prepares, every graph fails to start.
+
+`gslprobe` now issues that vote (PARAM_ID_RSC_HW_CORE / HW_CORE_ID_LPASS to
+PRM_MODULE_INSTANCE_ID). The DSP **receives** it - the diag log shows
+`hash=24cce70d line=54 args=['0x100100f']`, which is PRM_CMD_REQUEST_HW_RSC -
+but never answers, and the request times out (AR_ETIMEOUT). The payload shape
+is inferred from `hw_core_api.h` and is the most likely thing to be wrong.
+
+So the next step is to get that vote accepted:
+
+- Check the request payload against what PRM expects; `gsl_request_hw_rsc_config()`
+  with an ACDB lookup may be the intended route rather than the custom one.
+- The LPASS bit clock (`PARAM_ID_RSC_AUDIO_HW_CLK`) will be needed as well as
+  the core vote.
+- Or sidestep it: have the kernel hold the votes (q6prm already implements
+  them) while GSL drives the graph. Less faithful to the Android stack, but
+  it settles whether clocks are the whole story.
+
+Still open, and probably secondary: ACDB's CKV lookup fails with error 17 and
+no persistent calibration is found for subgraphs b0000002/b0000006. Only one
+ACDB file is loaded here; Android passes several.
