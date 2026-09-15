@@ -9,13 +9,13 @@ cd "$K"
 cleanup() {
 	git checkout -- drivers/soc/qcom/apr.c drivers/soc/qcom/Makefile \
 		drivers/soc/qcom/Kconfig include/linux/soc/qcom/apr.h 2>/dev/null || true
-	rm -f drivers/soc/qcom/audio_pkt.c
+	rm -f drivers/soc/qcom/audio_pkt.c drivers/soc/qcom/audio_pkt.h
 }
 trap cleanup EXIT
 
 cleanup
 git apply -p1 "$P"/0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
-cp /work/src/kernel/audio_pkt.c drivers/soc/qcom/
+cp /work/src/kernel/audio_pkt.c /work/src/kernel/audio_pkt.h drivers/soc/qcom/
 
 grep -q CONFIG_QCOM_AUDIO_PKT .config || echo 'CONFIG_QCOM_AUDIO_PKT=y' >> .config
 make -s ARCH=arm64 olddefconfig >/dev/null

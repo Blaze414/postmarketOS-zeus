@@ -7,18 +7,77 @@
  * cross /dev/aud_pasthru_adsp and come back. If that returns, the passthrough
  * and GSL's own transport agree, and the premise of the userspace port holds.
  *
- *   gslprobe /abs/path/Mise_elus_acdb_cal.acdb
+ *   gslprobe /abs/path/Mise_elus_acdb_cal.acdb [key=value ...]
  *
- * No graph is opened here and nothing is played: shared memory is the virtual
- * (malloc) backend, which the DSP cannot read.
+ * Given a graph key vector it goes further and opens that graph, then prepares
+ * and starts it. The speaker playback path on this device is
+ *
+ *   gslprobe .../Mise_elus_acdb_cal.acdb a1000000=a1000003 a2000000=a2000001
+ *
+ * which is the question the whole exercise exists to answer: whether the DSP
+ * will configure a TDM sink for a graph opened this way, when it will not for
+ * the same endpoint driven by the in-kernel q6apm (doc 11).
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "gsl_intf.h"
 
 void ar_log_init(void);
+
+#define MAX_KVPS 16
+
+static int32_t open_graph(int nkv, char **kvargs)
+{
+	struct gsl_key_value_pair kvp[MAX_KVPS];
+	struct gsl_key_vector gkv;
+	gsl_handle_t graph = NULL;
+	int32_t rc;
+
+	if (nkv > MAX_KVPS)
+		nkv = MAX_KVPS;
+
+	for (int i = 0; i < nkv; i++) {
+		if (sscanf(kvargs[i], "%x=%x", &kvp[i].key, &kvp[i].value) != 2) {
+			fprintf(stderr, "bad key=value: %s\n", kvargs[i]);
+			return -1;
+		}
+		printf("  gkv[%d] %08x=%08x\n", i, kvp[i].key, kvp[i].value);
+	}
+
+	gkv.num_kvps = nkv;
+	gkv.kvp = kvp;
+
+	/* No calibration key vector: the graph's own defaults are enough to
+	 * see whether the endpoint gets configured at all. */
+	rc = gsl_open(&gkv, NULL, &graph);
+	printf("gsl_open: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+	if (rc)
+		return rc;
+
+	rc = gsl_ioctl(graph, GSL_CMD_PREPARE, NULL, 0);
+	printf("gsl_ioctl PREPARE: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+
+	if (!rc) {
+		rc = gsl_ioctl(graph, GSL_CMD_START, NULL, 0);
+		printf("gsl_ioctl START: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+	}
+
+	if (!rc) {
+		/* Hold it running for a moment so the DSP's own logs show the
+		 * endpoint's steady state, not just its setup. */
+		printf("graph running, holding 2s\n");
+		sleep(2);
+		gsl_ioctl(graph, GSL_CMD_STOP, NULL, 0);
+	}
+
+	gsl_close(graph);
+	printf("gsl_close done\n");
+
+	return rc;
+}
 
 int main(int argc, char **argv)
 {
@@ -55,8 +114,11 @@ int main(int argc, char **argv)
 	if (rc)
 		return 1;
 
+	if (argc > 2)
+		rc = open_graph(argc - 2, argv + 2);
+
 	gsl_deinit();
 	printf("gsl_deinit done\n");
 
-	return 0;
+	return rc ? 1 : 0;
 }

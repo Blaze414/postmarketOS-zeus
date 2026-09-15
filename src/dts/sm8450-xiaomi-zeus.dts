@@ -1375,6 +1375,17 @@
 			reg = <3>;
 			qcom,protection-domain = "avs/audio",
 						 "msm/adsp/audio_pd";
+
+			/*
+			 * Buffers the DSP has to read are allocated against
+			 * this child, for its iommus alone: the same stream
+			 * id q6apmdai uses, which is what puts the memory in
+			 * the DSP's address space.
+			 */
+			audio_pkt_mem: memory {
+				compatible = "qcom,audio-pkt-mem";
+				iommus = <&apps_smmu 0x1801 0x0>;
+			};
 		};
 	};
 };

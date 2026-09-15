@@ -20,8 +20,10 @@ $PMB -y chroot -- apk add -q build-base
 sudo rm -rf "$CHROOT/home/pmos/gslbuild"
 sudo mkdir -p "$CHROOT/home/pmos/gslbuild"
 sudo cp -r "$GS_SRC" "$CHROOT/home/pmos/gslbuild/gs"
+sudo python3 /work/scripts/gsl/patch-gs.py "$CHROOT/home/pmos/gslbuild/gs"
 sudo cp /work/scripts/gsl/Makefile /work/scripts/gsl/gslprobe.c \
-	/work/scripts/gsl/stubs.c /work/scripts/gsl/gprprobe.c /work/scripts/gsl/ar_compat.h \
+	/work/scripts/gsl/stubs.c /work/scripts/gsl/gprprobe.c /work/scripts/gsl/ar_compat.h /work/scripts/gsl/ar_osal_shmem_audio_pkt.c \
+	/work/src/kernel/audio_pkt.h \
 	"$CHROOT/home/pmos/gslbuild/"
 sudo chown -R 12345:12345 "$CHROOT/home/pmos/gslbuild" 2>/dev/null || true
 

@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=55
+pkgrel=56
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -37,6 +37,7 @@ source="
 	sm8450-xiaomi-zeus.dts
 	panel-l2-38-0c-0a-dsc.c
 	audio_pkt.c
+	audio_pkt.h
 	0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 	0002-fts-single-full-duplex-transfer-for-geni.patch
 	0003-fts-palm-rejection-and-panel-follower.patch
@@ -64,7 +65,7 @@ prepare() {
 	# the driver itself is copied so it stays an editable source file.
 	cp "$srcdir"/sm8450-xiaomi-zeus.dts arch/arm64/boot/dts/qcom/
 	cp "$srcdir"/panel-l2-38-0c-0a-dsc.c drivers/gpu/drm/panel/
-	cp "$srcdir"/audio_pkt.c drivers/soc/qcom/
+	cp "$srcdir"/audio_pkt.c "$srcdir"/audio_pkt.h drivers/soc/qcom/
 
 	# Register the devicetree. NB: this Makefile separates with a TAB.
 	local mk=arch/arm64/boot/dts/qcom/Makefile
@@ -130,9 +131,10 @@ package() {
 sha512sums="
 75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz
 ef75fba9c9f1f084020f4e60ccfd355e20223f402aad7de819fe4f8dc6fcbbd114c53fb7e480682e629d53c1f92146df28c9ebf40e6ff060442d60b571e5ec10  config-postmarketos-qcom-sm8450-zeus.aarch64
-296cbdfa245ca807139d7c216191334cac1fcbd6e7aeaa3dcc59c57a5b541c0d63a8e2bd87ee3706562eeb6fd6bc74bef7d3245adae7bccc78ad75cc4dfdd099  sm8450-xiaomi-zeus.dts
+ee0a5a68682f2f58093c710f87f11e2d590799413e75f867a29a145e54478c3b8df11a706d482eeceb172443a75edbfb6158d562245c68e63c9b1183419ed599  sm8450-xiaomi-zeus.dts
 ff3fae64733f48dc97748d17fa4a159a5dfe136fab80ab7373bb8d65446c747e5eae3244e76143cb24e7147ea9702bed251a7433d09d8b0be95f410a47ccdfd3  panel-l2-38-0c-0a-dsc.c
-871a168cf5a2472cf3d587f66dbb5e43fad750cb361d483bd9c5fd7abef82cc6e4f85afea2b2d9fef2c1a7c848fb5ad3b3bead282dc0de961a6352a4b0944d57  audio_pkt.c
+834e4c8427a2c8b4ac2de78916d0957a4db70d094527674a7ffea6007cce58f2d2d5ca52a2349297f44203a6ce8415f78e7699a9fbeda06af51a865098db592b  audio_pkt.c
+095522094dd32a73ca62460de522d15e9a71220ce05c3c6b4faf2955dba1cd72043ce6f2cb14254342cd50ba3e103341ced11ccc17b078239d3d128272521bf9  audio_pkt.h
 bfde6fad3117dec055efe88a6a60c2393b3f5297e5ffacc743ae519e0100ed296d9546b8e6b86d9a75bbeb53676946a05e9f6cec2e95f3f8e0a7729c325b9664  0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c38412cf36e93c4cb20d257969f3b3ac5bb89b262d746503f1d7a  0002-fts-single-full-duplex-transfer-for-geni.patch
 6d20f8cf621cb38bfc00bdd041d5baa191320b8ab8dfa82ec0a3e9a7749d373f903f4ec1a91da72aa7cbb83407c0cc8aa2648590ea3a067df16699e3a4a53033  0003-fts-palm-rejection-and-panel-follower.patch

@@ -8,9 +8,9 @@
 #
 #   make GS=/path/to/audioreach-graphservices
 #
-# Shared memory deliberately uses the virtual (malloc) backend: the DSP cannot
-# read those buffers, so this builds the CONTROL path only. The data path needs
-# a dma-heap ar_osal_shmem, which is separate work.
+# Shared memory comes from ar_osal_shmem_audio_pkt.c here, not from any of the
+# tree's own backends: the virtual one hands the DSP malloc'd pages it cannot
+# reach, and both Qualcomm backends want Android kernel headers.
 
 GS ?= $(CURDIR)/gs
 O  := $(GS)/ar_osal/src/linux
@@ -25,7 +25,8 @@ CC      ?= gcc
 # the command line, and gpr_drv.c sizes its packet pools with it.
 CFLAGS  ?= -O2 -w -fPIC -D_GNU_SOURCE \
 	   -include $(CURDIR)/ar_compat.h \
-	   -DSESSION_ARRAY_SIZE=200 \
+	   -I$(CURDIR) -I$(CURDIR)/../../src/kernel \
+	   -DSESSION_ARRAY_SIZE=200 -DGSL_DEBUG_ENABLE \
 	   -Wno-error=incompatible-pointer-types
 LDLIBS  := -lpthread -ldl
 
@@ -40,8 +41,11 @@ INC     := $(foreach d,$(INCDIRS),$(if $(wildcard $(d)/*.h),-I$(d)))
 #   ar_osal_log.c       - needs cutils' log/log.h (stubs.c provides ar_log)
 #   ar_osal_signal2.c   - ALOGE, and unused; ar_osal_signal.c is the live one
 #   ar_osal_shmem_phy.c - needs linux/msm_audio.h
+#   ar_osal_shmem_virtual.c - replaced by ar_osal_shmem_audio_pkt.c
 SRC := $(filter-out $(O)/ar_osal_log.c $(O)/ar_osal_signal2.c \
-		$(O)/ar_osal_shmem_phy.c,$(wildcard $(O)/*.c)) \
+		$(O)/ar_osal_shmem_phy.c $(O)/ar_osal_shmem_virtual.c, \
+		$(wildcard $(O)/*.c)) \
+	ar_osal_shmem_audio_pkt.c \
 	$(Q)/ar_osal_servreg.c \
 	$(Q)/dyn_pd/ar_osal_dyn_pd.c \
 	$(wildcard $(GS)/ar_util/src/*.c) \

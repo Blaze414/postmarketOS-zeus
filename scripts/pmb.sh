@@ -51,7 +51,8 @@ git -C "$APORTS" rev-parse --verify -q postmarketOS/main >/dev/null || {
 echo "==> syncing canonical sources into the kernel package"
 cp /work/src/dts/sm8450-xiaomi-zeus.dts       /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
 cp /work/src/panel/panel-l2-38-0c-0a-dsc.c    /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
-cp /work/src/kernel/audio_pkt.c               /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
+cp /work/src/kernel/audio_pkt.c /work/src/kernel/audio_pkt.h \
+                                              /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
 
 # --- our packages, refreshed from /work every run ---
 echo "==> installing zeus packages into pmaports"
