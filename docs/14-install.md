@@ -97,16 +97,22 @@ and GPR passthrough. It exits non-zero if anything is missing.
 | Audio - internal speakers | **no**. See `docs/13-sm8450-mainline-findings.html` |
 | Modem, camera | not attempted |
 
-## Not verified
+## Verified end to end
 
-The full install path above has **not** been run end to end on hardware - the
-one device available was carrying the working port and was not wiped. Every
-individual piece is verified: the images are well formed and self-consistent
-(the boot image's cmdline UUIDs match the filesystems in the rootfs image), the
-audit passes with everything present, and the kernel-only path has been flashed
-and booted many times. What has not been exercised is one clean run from stock
-Android to a booted phone.
+Run on hardware from fastboot to a booted phone on 2026-09-16, against the
+kernel r58 / `#59` build:
 
-If you do that run, the thing most likely to need adjusting is the `userdata`
-step - confirm your device exposes that partition name (`fastboot getvar
-partition-type:userdata`).
+| step | result |
+|---|---|
+| `vbmeta_a`, `vbmeta_b`, `boot`, `userdata` | flashed, 3 GB rootfs sparsed into 3 chunks in 55 s |
+| first boot | USB network up ~30 s after reboot, sshd ~160 s |
+| identity | cmdline UUIDs match the rootfs image built beside the boot image - no rewrite needed for a fresh install |
+| CPU | conservative by default: cpu4 1881600, cpu7 1728000, boost off. `zeus-cpu-profile performance` gives cpu7 2995200 with boost on, `conservative` puts it back |
+| WiFi | ASPM policy `[performance]`, `l1_aspm=0`, NetworkManager drop-in present, `wlan0` up |
+| audio | card present with both playback devices, `/dev/aud_pasthru_adsp` present |
+| A/B slot | `qbootctl` started, so the slot is marked good and the bootloader will not roll back |
+| shell | greetd and NetworkManager started, phosh running, DSI connector present |
+
+The pre-flight checks the script relies on were confirmed on the same device:
+`unlocked: yes`, `current-slot: a`, and `userdata` (f2fs), `boot`, `vbmeta_a`
+and `vbmeta_b` all present.
