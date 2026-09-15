@@ -1,0 +1,15 @@
+#!/bin/sh
+# WCN6855 PCIe link stability.
+#
+# With PCIe ASPM L1 enabled on the WiFi endpoint (0000:01:00.0, l1_aspm=1 by
+# default) the link destabilises under load: a burst of AER errors the ath11k
+# driver has no recovery callback for escalates to "link down error during
+# global reset", after which the firmware cannot re-init (MHI BHI offset reads
+# 0xffffffff) and WiFi is dead until reboot. The same instability makes hw
+# scans time out (-110) once associated, then wedges scanning (-11). Keeping the
+# link in L0 avoids it. Setting the global policy re-applies ASPM state to every
+# link, so this takes effect on the already-trained WiFi link.
+[ -w /sys/module/pcie_aspm/parameters/policy ] &&
+	echo performance > /sys/module/pcie_aspm/parameters/policy
+
+exit 0

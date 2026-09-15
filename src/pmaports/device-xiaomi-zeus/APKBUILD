@@ -2,7 +2,7 @@
 pkgname=device-xiaomi-zeus
 pkgdesc="Xiaomi 12 Pro"
 pkgver=1
-pkgrel=15
+pkgrel=16
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -47,6 +47,8 @@ source="
 	zeus-phosh-session
 	zeus-cpufreq.start
 	zeus-cpu-profile
+	zeus-wifi.start
+	wifi-powersave-off.conf
 	Xiaomi-12.conf
 	HiFi.conf
 	sm.puri.OSK0.desktop
@@ -64,6 +66,10 @@ package() {
 		"$pkgdir"/etc/local.d/zeus-cpufreq.start
 	install -D -m755 "$srcdir"/zeus-cpu-profile \
 		"$pkgdir"/usr/bin/zeus-cpu-profile
+	install -D -m755 "$srcdir"/zeus-wifi.start \
+		"$pkgdir"/etc/local.d/zeus-wifi.start
+	install -D -m644 "$srcdir"/wifi-powersave-off.conf \
+		"$pkgdir"/etc/NetworkManager/conf.d/wifi-powersave-off.conf
 
 	# ALSA use case manager profile. Without one matching this card the sound
 	# server cannot configure it and falls back to a Dummy Output; with it the
@@ -133,6 +139,8 @@ ded73e81d2be57b0e032416bca6b31c1d91a76d5d65d93ee8f565753b57308bacd0fe29da044e6c6
 082edc3cfda1cadeb5dc8f47d52c279ce5bbc36fc590a7ca3b9574b101af49f1447ece06d9315cfcbd1fd050aa49192ef25c7477752938ec4de57183282b3061  zeus-phosh-session
 5e9f65f05d27e51a3965527094ab131e0e8d03149d88ca25d6b9e033e2809f985b3d3a3b6c1eaa151d05051d254efdb8bd8e8a39414a406ca0e34044a259e1ac  zeus-cpufreq.start
 e40cdc728d11d7d2885cd07d035a3b6e5a79a81c6ea3cdfa33ff6439840906bbc62925ed479a1ff940c63efce2288cd1192a8cbd8b7648f8768a8ae5a52c7cee  zeus-cpu-profile
+9e60dec1a639d82491baaba924415a71e0e89f7e517ec4d4fb02d1faf1086df2b5de7c15b5f91365e50cab8548ed660709ff37fc183aebc9ef43190e779e4264  zeus-wifi.start
+88d1efdc5981219640e734c5a1f016047e96d24fedbf91199d5836a990a906abe7723b4335238731a15bf1d6f7b280e5f07816b1c7f7de12597aa767ed208bcd  wifi-powersave-off.conf
 57d0aa398d64ec4129e76b3cbdb681548b5f976da0277794393fa5a2a3ae9657b9d1a3af465880707a1fde3f7875a0704fe2440edad5e1615e9d8970447ef825  Xiaomi-12.conf
 7615196803c68dd5c5a9b561abfa6b0ed21ed76986653d9f237654451eb32f7f7b1bc867bd8a9b585e8c85753ff47f69f8cd48c881eab6a023bc32b0b5c41a5e  HiFi.conf
 021c7b0f11d432ed2e13e0207f725b3eb38d14cbe59e230fbebbb8e2d2c9c2f4d291847f97a50a0032d45acd5fa05889503fbc333d8065d19f9827abfead4e47  sm.puri.OSK0.desktop
