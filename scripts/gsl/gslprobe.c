@@ -301,7 +301,28 @@ static int32_t open_graph(int nkv, char **kvargs, int dev_nkv, char **devargs)
 	rc = gsl_ioctl(graph, GSL_CMD_PREPARE, NULL, 0);
 	printf("gsl_ioctl PREPARE: %d (%s)\n", rc, rc ? "FAILED" : "OK");
 
-	if (!rc) {
+	if (!rc && getenv("GSL_START_REVERSE")) {
+		/*
+		 * Start the subgraphs from the far end back, rather than all at
+		 * once. GSL sends them in list order, device first, so the
+		 * hardware subgraph is asked to start before anything upstream
+		 * of it is running - and a module whose input media format has
+		 * never been propagated cannot start. Walking the list in
+		 * reverse starts each subgraph only once its source is live.
+		 */
+		int n = atoi(getenv("GSL_START_REVERSE"));
+
+		for (int i = n - 1; i >= 0 && !rc; i--) {
+			char idx[8];
+
+			snprintf(idx, sizeof(idx), "%d", i);
+			setenv("GSL_START_ONLY_SG", idx, 1);
+			rc = gsl_ioctl(graph, GSL_CMD_START, NULL, 0);
+			printf("gsl_ioctl START[sg %d]: %d (%s)\n", i, rc,
+			       rc ? "FAILED" : "OK");
+		}
+		unsetenv("GSL_START_ONLY_SG");
+	} else if (!rc) {
 		rc = gsl_ioctl(graph, GSL_CMD_START, NULL, 0);
 		printf("gsl_ioctl START: %d (%s)\n", rc, rc ? "FAILED" : "OK");
 	}
