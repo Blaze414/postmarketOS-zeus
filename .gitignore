@@ -10,3 +10,7 @@ src/pmaports/firmware-xiaomi-zeus/*.tar.gz
 scripts/gsl/gslprobe
 scripts/gsl/gprprobe
 __pycache__/
+# Local tooling state
+.claude/
+.remember/
+.DS_Store
