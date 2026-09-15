@@ -502,6 +502,38 @@ Whole-session status after all of the above, with everything else clean:
 02001005 01001002 00000001   GRAPH_START          <- only failure
 ```
 
+## Contention ruled out too
+
+The device subgraph refusal is not another client holding the hardware. The
+kernel's graph runs continuously in normal use - PulseAudio keeps
+MultiMedia1 open, `pcm0p` reads `RUNNING`, and the DSP log is full of the
+topology graph's own modules (0x6001, 0x6024, 0x6072) exchanging data
+buffers. Killing PulseAudio is not enough; it respawns from the session.
+
+With `greetd` stopped, PulseAudio and pipewire gone, `pcm0p` closed and the
+DSP quiet, the result is unchanged: GRAPH_START of b0000002 still fails. The
+clean capture that follows is short and entirely ours, and still resolves to
+hashes:
+
+```
+hash=ab30ddf9 line=415  args=[0x2, 0x700101a, 0x1, 0x0, 0x2]
+hash=9d598de9 line=2931 args=[0x4039, 0x8001031]
+hash=eafda19d line=1931 args=[0x100a6000, 0x3, 0x4048, 0x2, 0x4046, 0x1, 0x0]
+hash=8d3fdd9f line=657  args=[0x100a6000, 0x0, 0x4048, 0x0, 0x1]
+hash=3f2e032e line=1588 args=[0x100a6000, 0x4042, 0x2, 0x1]
+```
+
+The module instances are the device subgraph's own (0x4039-0x4048), so the
+DSP is saying something specific about them. Without the ADSP's QShrink
+database it stays unreadable.
+
+## Where this stands
+
+The port itself works: control, shared memory, graph open, configuration,
+media format and prepare all succeed against the real DSP, and stream
+subgraphs start. **Audio does not play**, because no stock device subgraph
+can be started from here - speakers and headphones alike.
+
 ## Leads left
 
 - **Persistent calibration - now the leading suspect.** Only non-persistent
