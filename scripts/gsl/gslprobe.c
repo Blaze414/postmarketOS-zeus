@@ -33,9 +33,9 @@
 void ar_log_init(void);
 
 #define MAX_KVPS	16
-/* 48 kHz, stereo, 16-bit: 100 ms of audio. */
-#define PERIOD_BYTES	19200
-#define PERIODS		40
+/* 48 kHz, stereo, 16-bit: 10 ms of audio. */
+#define PERIOD_BYTES	1920
+#define PERIODS		400
 /*
  * The tag naming a stream's shared-memory write endpoint. Not defined in
  * graphservices - it comes from the tag list Qualcomm's own clients compile
@@ -195,11 +195,11 @@ static void play_tone(gsl_handle_t graph)
 		frame[i] = frame[i + 1] = v;
 	}
 
-	printf("writing %d periods (%d ms)\n", PERIODS, PERIODS * 100);
+	printf("writing %d periods (%d ms)\n", PERIODS, PERIODS * 10);
 	for (int n = 0, ok = 0, bad = 0; n < PERIODS; n++) {
 		int tries;
 
-		for (tries = 0; tries < 50; tries++) {
+		for (tries = 0; tries < 500; tries++) {
 			memset(&buff, 0, sizeof(buff));
 			buff.size = sizeof(frame);
 			buff.addr = (uint8_t *)frame;
@@ -299,7 +299,7 @@ static int32_t open_graph(int nkv, char **kvargs, int dev_nkv, char **devargs)
 	 */
 	memset(&wr, 0, sizeof(wr));
 	wr.buff_size = PERIOD_BYTES;
-	wr.num_buffs = 8;
+	wr.num_buffs = 4;
 	wr.start_threshold = 0;
 	wr.attributes = GSL_DATA_MODE_BLOCKING;
 	rc = gsl_ioctl(graph, GSL_CMD_CONFIGURE_WRITE_PARAMS, &wr, sizeof(wr));
