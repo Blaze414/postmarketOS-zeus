@@ -609,3 +609,41 @@ audioreach TDM-sink playback support that mainline does not have, not on a zeus
 topology/param mistake. Reopen if upstream audioreach gains TDM-sink render
 support, or if the wcd/wsa or an I2S-sink framing of the tertiary port proves
 viable. USB-C audio remains the working output.
+
+## Endpoint config exhausted against the vendor source (2026-09-15b)
+
+Re-opened on the user's report that on unlock the speaker briefly popped then
+went silent - i.e. it is a transient, not a hard nothing. Compared the mainline
+q6apm/audioreach path against the vendor AGM + GSL source directly
+(audioreach-graphmgr, audioreach-graphservices) to find any command AGM sends
+that mainline does not:
+
+- `graph_prepare` -> per-module `configure()`, `configure_buffer_params`,
+  `GSL_CMD_PREPARE`; `graph_start` -> just `GSL_CMD_START`. Nothing TDM-special.
+- `configure_output_media_format` sets the PCM converter output to
+  `PCM_DEINTERLEAVED_UNPACKED` on RX - and our FE topology already carries
+  `AR_TKN_U32_MODULE_FMT_INTERLEAVE 3` on module 0x0700101B, so the FE hands the
+  sink deinterleaved data exactly as AGM would. Shared by both BEs.
+- `configure_hw_ep` sends HW_EP_MF_CFG *before* the TDM interface cfg.
+
+Three endpoint-config changes were then built and traced on hardware:
+
+| change | buffer-dones | media_format_set |
+|---|---|---|
+| HW_EP_MF before intf, bundled (matches codec-dma order) | 0-2 (write-side) | 0 |
+| HW_EP_MF as its own SET_CFG, then intf (matches AGM exactly) | 0 | 0 |
+| TDM slot width 16 -> 32, bclk rate x 32 x 4 (stock/ACDB value) | 2 | 0 |
+
+`media_format_set:0` is invariant to every endpoint-config variable (param
+order, separate vs bundled commands, slot width). The DSP never logs a
+media-format rejection (disassembly lines 785/789/806 never fire), so the stream
+format is not being rejected by the sink - it never propagates to the sink's
+input port. The couple of buffer-dones are the write shared-memory EP accepting
+its first buffers (the "pop"); the TDM sink itself consumes nothing.
+
+This is the same wall from every side now: mainline gets the container to
+propagate the stream media format (and the data trigger) to a codec-DMA sink but
+not to a TDM sink, and nothing the kernel sends the endpoint changes that. It is
+a missing audioreach capability (TDM hardware-endpoint render / signal-trigger),
+not a zeus config error. All experimental patches reverted; tree back at the
+committed baseline; device restored to the HDK topology (headphones/USB-C).
