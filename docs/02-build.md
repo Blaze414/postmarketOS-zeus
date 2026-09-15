@@ -249,6 +249,11 @@ would leave the initramfs unable to find either.
 
 ### Flashing
 
+> **Out of date.** The build now produces split images and
+> `vbmeta-disabled.img`; the combined `xiaomi-zeus.img` and `vbmeta.img` below
+> no longer exist. See `docs/14-install.md` and `scripts/flash.sh`.
+
+
 ```bash
 fastboot flash boot out/pmb/boot.img
 ```
