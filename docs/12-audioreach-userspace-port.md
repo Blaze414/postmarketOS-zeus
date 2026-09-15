@@ -153,7 +153,75 @@ GSL needs pages the ADSP can map. The mainline pieces already exist:
   it wants `linux/msm_audio.h` only for the ioctl that asks the kernel to map
   a buffer into the DSP's context.
 
-So the shape is: give `audio_pkt` an ioctl that takes a dma-buf fd, attaches
-and maps it against a device with the ADSP's SMMU context, and returns the
-device address; then point `ar_osal_shmem` at that instead of at msm_audio.
-That is the whole of the data path, and it is the next piece of work.
+So the shape is: give `audio_pkt` an ioctl that hands back memory the DSP can
+reach, and point `ar_osal_shmem` at it instead of at msm_audio.
+
+## Milestone 2: done, and GSL opens the speaker graph
+
+Simpler than importing a dma-buf: the kernel allocates. `AUDIO_PKT_IOCTL_ALLOC`
+plus `mmap()` give userspace a `dma_alloc_coherent()` buffer taken against a
+new `memory` child of the GPR service node with
+`iommus = <&apps_smmu 0x1801 0x0>` - the ADSP's stream id. It lands in the
+same IOMMU group as `q6apmdai`:
+
+```
+# ls /sys/kernel/iommu_groups/19/devices/
+30000000.remoteproc:glink-edge:gpr:service@1:dais
+30000000.remoteproc:glink-edge:gpr:service@3:memory
+```
+
+and the address returned is the dma address with the stream id in the top
+bits, composed exactly as q6apm-dai composes `prtd->phys`. The child needs a
+driver bound to it only so the bus runs `of_dma_configure()`; hence the
+trivial platform driver beside the main one.
+
+`scripts/gsl/ar_osal_shmem_audio_pkt.c` is ar_osal_shmem over that ioctl.
+Because the real address is known in userspace, buffers are reported in
+address mode (`AR_SHMEM_BUFFER_ADDRESS`, `AR_SHMEM_PHYSICAL_MEMORY`) and GSL
+leaves `client_data` clear - the Android stack's trick of having the kernel
+substitute a physical address on the way past is not needed.
+
+One local edit to graphservices was needed (`scripts/gsl/patch-gs.py`):
+`gsl_init` treats a failed dynamic AMDB module load as fatal, and the DSP
+cannot load those modules here. They are aptX, LC3 and an Elliptic ultrasound
+module, whose `.so` files the DSP fetches from the Android vendor partition
+over rfsa - which pmOS has no counterpart to. None is on the path to the
+speakers.
+
+With that:
+
+```
+gsl_init: 0 (OK)
+```
+
+### The experiment, at last
+
+Opening the stock speaker graph by its key vector
+(`a1000000=a1000003 a2000000=a2000001`, doc 11):
+
+| command | opcode | spf_status |
+|---|---|---|
+| `gsl_open` | 0x1001000 GRAPH_OPEN | **0** |
+| | 0x1001006 SET_CFG | **0** |
+| `GSL_CMD_PREPARE` | 0x1001001 GRAPH_PREPARE | **0** |
+| `GSL_CMD_START` | 0x1001002 GRAPH_START | **1** |
+
+The DSP **accepts** the stock speaker graph - open, configure and prepare all
+succeed, where the in-kernel path could not get a TDM sink configured at all.
+GRAPH_START is then refused with a bare AR_EFAILED and no detail.
+
+So the premise holds further than milestone 1 could show, and the remaining
+failure is a new one, not the old `media_format_set:0` wall.
+
+## Open questions for milestone 3
+
+- **Why GRAPH_START fails.** The status is generic and the kernel log says
+  nothing (GSL bypasses q6apm entirely). The DSP's own QShrink log over diag
+  is the way to find out which module refuses - the tooling from doc 11
+  (`scripts/diag`, `diagcat.py`) already exists.
+- **Calibration.** ACDB's own CKV lookup fails with error 17 ("CKV key table
+  and value table offsets") and no persistent calibration is found for
+  subgraphs b0000002 or b0000006. Some modules may well refuse to start
+  uncalibrated. Only one ACDB file is being loaded; Android passes several.
+- **Clocks.** No traffic was seen on GSL's hardware resource manager port
+  (0x2004), so nothing has voted the LPASS TDM bit clock from this side.
