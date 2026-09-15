@@ -1,0 +1,481 @@
+<title>TDM Sink Never Pulls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root {
+    --paper:   #f4f6f3;
+    --raised:  #ffffff;
+    --ink:     #161a18;
+    --muted:   #5e6863;
+    --rule:    #d5dbd4;
+    --signal:  #1c6f66;
+    --blocked: #a3402a;
+    --wash:    #e9eee9;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:   #101311;
+      --raised:  #171b18;
+      --ink:     #e4eae3;
+      --muted:   #97a29b;
+      --rule:    #2a312c;
+      --signal:  #5cc3b2;
+      --blocked: #e08363;
+      --wash:    #1b201c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #101311;
+    --raised:  #171b18;
+    --ink:     #e4eae3;
+    --muted:   #97a29b;
+    --rule:    #2a312c;
+    --signal:  #5cc3b2;
+    --blocked: #e08363;
+    --wash:    #1b201c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding-block: 3.5rem 5rem;
+    padding-left: 20px;
+    padding-right: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 47rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3rem; }
+  .block { display: flex; flex-direction: column; gap: 1rem; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 2.9rem);
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1.32rem;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+    padding-bottom: .5rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 1.02rem;
+    margin: 0;
+    text-wrap: balance;
+  }
+  p { margin: 0; }
+  a { color: inherit; text-decoration-color: var(--signal); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+  .lede { font-size: 1.12rem; color: var(--ink); }
+  .meta {
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.8;
+    color: var(--muted);
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: .1rem 1.2rem;
+  }
+  .meta dt { color: var(--muted); }
+  .meta dd { margin: 0; color: var(--ink); }
+
+  code, .mono { font-family: var(--mono); font-size: .86em; }
+  p code, li code, td code { background: var(--wash); padding: .08em .32em; border-radius: 3px; }
+
+  .scroll { overflow-x: auto; }
+  pre {
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.6;
+    background: var(--raised);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--muted);
+    padding: .95rem 1.1rem;
+    margin: 0;
+    min-width: max-content;
+  }
+  .scroll > pre { min-width: 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; min-width: 28rem; }
+  caption {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding-bottom: .55rem;
+  }
+  th {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: .78rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 .9rem .45rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  td {
+    padding: .5rem .9rem .5rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  td.m, th.m { font-family: var(--mono); font-size: .82rem; }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: .16em .5em;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .ok   { color: var(--signal);  background: color-mix(in srgb, var(--signal) 13%, transparent); }
+  .bad  { color: var(--blocked); background: color-mix(in srgb, var(--blocked) 15%, transparent); }
+
+  ul, ol { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: .5rem; }
+  li::marker { color: var(--muted); }
+
+  .finding {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    background: var(--raised);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--signal);
+    padding: 1.4rem 1.5rem;
+  }
+  .finding.stop { border-top-color: var(--blocked); }
+  .finding .eyebrow { color: var(--signal); }
+  .finding.stop .eyebrow { color: var(--blocked); }
+
+  .note {
+    border-left: 3px solid var(--rule);
+    padding-left: 1.1rem;
+    color: var(--muted);
+    font-size: .95rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.4rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+
+  @media (max-width: 30rem) {
+    body { font-size: 16px; }
+    .meta { grid-template-columns: 1fr; gap: 0 0; }
+    .meta dt { margin-top: .5rem; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="block">
+    <p class="eyebrow">SM8450 · Xiaomi 12 Pro (zeus) · audio findings</p>
+    <h1>The TDM sink never pulls</h1>
+    <p class="lede">
+      On this board the speaker path ends at a hardware endpoint that the DSP
+      configures correctly and then never feeds. The same wall has now been
+      reached twice from opposite directions — through mainline’s in-kernel
+      q6apm, and through Qualcomm’s own AudioReach userspace driving the same
+      firmware. Three side findings along the way look independently useful to
+      this tree.
+    </p>
+    <dl class="meta">
+      <dt>Kernel</dt><dd>sm8450-mainline/linux <code>next-new</code> @ bf1d29fce (6.13.0-rc3)</dd>
+      <dt>Working</dt><dd>WCD9385 headphones via codec_dma; USB-C audio</dd>
+      <dt>Broken</dt><dd>4 internal amps on tertiary TDM (TERTIARY_TDM_RX_0)</dd>
+      <dt>Topology</dt><dd>SM8450-HDK plus a tertiary TDM playback backend</dd>
+    </dl>
+  </header>
+
+  <section class="block">
+    <h2>The symptom, precisely</h2>
+    <p>
+      Captured the ADSP’s F3/QShrink diag across a playback attempt on both
+      backends, on one loaded topology, and compared them directly.
+    </p>
+    <div class="scroll">
+<pre>headphones, CODEC_DMA sink (module 0x6072)
+  line=195  args=[&lt;cont&gt;, 0x6001, 0x0, 0x5001004, &lt;buf&gt;, 0x20, ...]   x12
+  the write-shmem EP completing buffers as the sink pulls
+  bufdone = 12    underrun = 0    media_format_set = 1
+
+speakers, TDM sink (module 0x60a2)
+  line=1127 args=[&lt;cont&gt;, 0x60a2, 0x2, 0x3e8, 0x30, 0xbb80, 0xc0]      x1
+  2 ch, 48000 Hz, 48 samples/ms, 192 bytes/ms — computed correctly
+  bufdone = 0     underrun = 27   media_format_set = 0</pre>
+    </div>
+    <p>
+      The endpoint’s <em>hardware</em> media format is right. Its input data
+      port never receives a <em>stream</em> media format, so it never pulls, and
+      no buffer ever reaches it. The TDM sink runs its own 1&nbsp;ms timer, which
+      is where the periodic underruns come from. A structurally identical
+      codec-DMA graph flows normally, and disassembly of both sinks’
+      <code>CAPI_INPUT_MEDIA_FORMAT_V2</code> handlers shows byte-identical
+      acceptance checks — the TDM sink is not rejecting a format, it is never
+      offered one.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Confirmed from the other side</h2>
+    <p>
+      To test whether this is mainline’s graph handling or the firmware itself,
+      the vendor userspace was brought up on postmarketOS: a small
+      <code>audio_pkt</code> character device over the existing GPR router, plus
+      Qualcomm’s <a href="https://github.com/AudioReach/audioreach-graphservices">audioreach-graphservices</a>
+      (GSL) built against musl, driving graphs straight out of the phone’s own
+      ACDB. Shared memory comes from <code>dma_alloc_coherent()</code> against a
+      node carrying <code>iommus = &lt;&amp;apps_smmu 0x1801 0x0&gt;</code>, which
+      lands in the same IOMMU group as <code>q6apmdai</code>.
+    </p>
+    <p>
+      That path gets a long way. With the stock speaker use case
+      (<code class="mono">a1000000=a1000005 a2000000=a2000001 ac000000=ac000003</code>,
+      four subgraphs, both <code>WR_SHMEM_EP</code> and <code>TDM_SINK</code>):
+    </p>
+    <div class="scroll">
+      <table>
+        <caption>Whole session, one status per command</caption>
+        <thead>
+          <tr><th class="m">opcode</th><th>command</th><th>status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="m">0x02001002</td><td>PRM hw core vote</td><td><span class="pill ok">granted</span></td></tr>
+          <tr><td class="m">0x01001000</td><td>GRAPH_OPEN</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">0x01001006</td><td>SET_CFG (calibration)</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">0x01001006</td><td>SET_CFG (media format)</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">0x0100100d</td><td>memory map</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">0x01001001</td><td>GRAPH_PREPARE</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">0x01001002</td><td>GRAPH_START (all 4 subgraphs)</td><td><span class="pill ok">0</span></td></tr>
+          <tr><td class="m">—</td><td>rendered buffers returned</td><td><span class="pill bad">none</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Pins muxed (<code>gpio121–123</code> as <code>mi2s2_sck / mi2s2_data0 /
+      mi2s2_ws</code>, claimed by the card), bit clock voted through
+      <code>q6prmcc LPASS_CLK_ID_TER_TDM_IBIT</code>, media format set on the
+      real write endpoint, every subgraph started — and the DSP returns zero
+      write-done. Same wall, different road.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Three findings worth checking upstream</h2>
+    <p>
+      These came out of the userspace work but are about this tree, not about
+      GSL.
+    </p>
+
+    <div class="finding">
+      <p class="eyebrow">Finding 1 · graph start order</p>
+      <h3>A device subgraph will not start before its source is running</h3>
+      <p>
+        GSL sends <code>APM_CMD_GRAPH_START</code> with the whole subgraph list
+        in graph order, device first. Every device subgraph refuses it —
+        <code>b0000002</code> (speakers) and <code>b0000014</code> (headphones)
+        alike. Starting them one at a time from the far end back, so each
+        subgraph starts only once its source is live, every one succeeds:
+      </p>
+      <div class="scroll">
+<pre>GSL_START_ONLY_SG=3  b000000e  OK      GSL_START_ONLY_SG=1  b000000f  OK
+GSL_START_ONLY_SG=2  b0000020  OK      GSL_START_ONLY_SG=0  b0000002  OK   &lt;- speakers</pre>
+      </div>
+      <p>
+        Started first instead, <code>b0000002</code> is refused with a bare
+        <code>AR_EFAILED</code>. The DSP-side message that fires only in the
+        failing case reports a module in that subgraph with its media-format
+        flags still clear.
+      </p>
+      <p class="note">
+        Worth a look at <code>audioreach_graph_start()</code>, which likewise
+        sends the whole subgraph list in one command. It has not been shown to
+        misbehave here — the speaker path fails for its own reasons long before
+        this matters — but the ordering constraint appears to be real.
+      </p>
+    </div>
+
+    <div class="finding">
+      <p class="eyebrow">Finding 2 · ADSP restart</p>
+      <h3>The sound card does not survive an ADSP restart</h3>
+      <p>
+        Cycling <code>/sys/class/remoteproc/remoteproc1/state</code> brings the
+        DSP back cleanly, but the card does not come with it:
+      </p>
+      <div class="scroll">
+<pre>wcd938x_codec audio-codec: ASoC: error at snd_soc_component_probe on audio-codec: -16
+snd-sc8280xp sound: ASoC: failed to instantiate card -16</pre>
+      </div>
+      <p>
+        <code>-EBUSY</code> from the codec component on re-probe; only a reboot
+        recovers it. Reproducible, and independent of anything in this report.
+      </p>
+    </div>
+
+    <div class="finding">
+      <p class="eyebrow">Finding 3 · boot-time timeout</p>
+      <h3>q6apm’s SPF state query times out while userspace’s answers instantly</h3>
+      <p>
+        Every boot logs
+        <code>qcom-apm gprsvc:service:2:1: CMD timeout for [1001021] opcode</code>
+        about five seconds in. The identical
+        <code>APM_CMD_GET_SPF_STATE</code> sent from userspace over the same
+        router is answered immediately:
+      </p>
+      <div class="scroll">
+<pre>tx  00001860 00000302 00002003 00000001 5a5a0001 01001021
+rx  00001c60 00000203 00000001 00002003 5a5a0001 02001007 00000001
+                                                          ^ SPF ready</pre>
+      </div>
+      <p>
+        So the DSP is not slow to answer. Something about how the in-kernel
+        client waits misses the reply. Harmless in practice — q6apm retries —
+        but it suggests a real race.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>What has been eliminated</h2>
+    <p>
+      Each of these was tested on hardware against the failing path, from one
+      side or the other.
+    </p>
+    <div class="scroll">
+      <table>
+        <caption>Ruled out</caption>
+        <thead><tr><th>Hypothesis</th><th>How it was excluded</th></tr></thead>
+        <tbody>
+          <tr><td>Endpoint module / interface / lane</td><td>TDM_SINK, I2S_SINK, AUDIO_IF_SINK; every interface index and lane config in the stock ACDB</td></tr>
+          <tr><td>Clocking</td><td>LPASS core voted (already held by the codec macros); TDM bit clock voted explicitly at 1.536 MHz</td></tr>
+          <tr><td>Pin mux</td><td>Card claims gpio121–123 at probe; verified in <code>f100000.pinctrl/pinmux-pins</code></td></tr>
+          <tr><td>Sample format and rate</td><td>16/32-bit slots, S16/S32, 48 kHz and 96 kHz/24-bit as the ACDB calibrates it</td></tr>
+          <tr><td>Internal chain shape</td><td>MFC removed; SPLITTER links pruned; byte-for-byte stock ACDB graph replay</td></tr>
+          <tr><td>Frame shape</td><td>Stock <code>ctrl_data_out_enable</code>, short-sync bit mode, normal sync polarity from ACDB module-tag data</td></tr>
+          <tr><td>Graph start order</td><td>Both orders tried in kernel and userspace; reverse order starts the subgraph but does not make it pull</td></tr>
+          <tr><td>Stream media format</td><td><code>PARAM_ID_MEDIA_FORMAT</code> accepted by the real <code>WR_SHMEM_EP</code> before prepare</td></tr>
+          <tr><td>Contention</td><td>Session stopped, PulseAudio killed, card closed, DSP idle — unchanged</td></tr>
+          <tr><td>Dynamic AMDB modules</td><td>Registration skipped entirely; the graph’s modules are all built-in</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      One caveat worth stating plainly: the vendor ACDB’s calibration key-vector
+      tables fail to parse in current graphservices (<code>AR_ENEEDMORE</code>),
+      and no persistent calibration is found for <code>b0000002</code> or
+      <code>b0000006</code>. Only one database file is loaded where Android
+      loads several. Whether that matters to the endpoint is untested.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Where the reasoning stops</h2>
+    <p>
+      The DSP’s own explanation is out of reach. SPF messages are
+      QShrink-hashed, and the only database on the phone is the modem’s — none
+      of the relevant hashes appear in it, in either byte order. The ADSP’s
+      database is generated when the firmware is built and is not shipped.
+    </p>
+    <p>
+      Hashes can still be attributed to source files by locating the 12-byte
+      descriptor <code class="mono">{ssid&lt;&lt;16|line, ss_mask, hash}</code> in
+      <code>adsp.mbn</code> and reading the code that references it. Hexagon
+      assembles a 32-bit constant from an extender plus the following
+      instruction, so the address is never four contiguous bytes; the extender
+      carries <code>imm[31:6]</code>, which narrows a search to 64 bytes:
+    </p>
+    <div class="scroll">
+<pre>0000 | imm[31:20] (bits 27-16) | parse (bits 15-14) | imm[19:6] (bits 13-0)
+
+call sites then look like:
+  immext(##0xb090d140)
+  R1:0 = combine(#0x4,##0xb090d160)   ; R0 = descriptor, R1 = argc
+  call 0xb0030b20                     ; logging entry point</pre>
+    </div>
+    <p>
+      The messages around the failure attribute to Spf’s <code>gen_topo</code>
+      set — the generic topology layer that starts modules. Recovering the
+      actual condition means reading a few thousand lines of hashed Hexagon
+      assembly, which is where this stops.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2>Reproducing it</h2>
+    <p>
+      The kernel-side symptom needs only this tree plus a topology with a
+      tertiary TDM playback backend; play anything at the speaker PCM and watch
+      the ADSP diag for <code>media_format_set</code> staying at 0 while
+      underruns climb.
+    </p>
+    <p>
+      Packet-level comparison is easier with a tap in the router itself, since
+      q6apm, q6prm and any userspace client all pass through
+      <code>pkt_router_send_svc_pkt()</code> and
+      <code>gpr_do_rx_callback()</code>:
+    </p>
+    <div class="scroll">
+<pre>echo 1 &gt; /sys/module/apr/parameters/gpr_trace   # local patch, off by default
+dmesg -C                                        # the touchscreen driver floods
+                                                # the ring buffer in seconds
+&lt;run the case&gt;
+dmesg | grep -E 'gpr tx|gpr rx'</pre>
+    </div>
+    <p>
+      Patches, the <code>audio_pkt</code> shim, the GSL build for musl and the
+      QShrink attribution tools are in
+      <span class="mono">github.com/YusufAlZadid</span>’s zeus port tree and can
+      be split out into whatever form is useful.
+    </p>
+  </section>
+
+  <footer>
+    Xiaomi 12 Pro (zeus) · SM8450 · kernel bf1d29fce · findings current to 2026-09-16<br>
+    Speakers parked. Headphones and USB-C audio work; everything above concerns
+    the TDM path only.
+  </footer>
+
+</div>
