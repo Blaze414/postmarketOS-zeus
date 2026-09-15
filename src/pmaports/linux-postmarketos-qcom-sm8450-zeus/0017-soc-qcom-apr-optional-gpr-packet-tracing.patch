@@ -1,0 +1,75 @@
+From: Yusuf Al Zadid <yusufalzadid@gmail.com>
+Subject: [PATCH] soc: qcom: apr: optional GPR packet tracing
+
+Every client of the DSP - q6apm, q6prm, and userspace through audio_pkt -
+sends and receives through this one router, so a tap here sees all of them
+without instrumenting any.
+
+That is worth having because of a specific problem: the in-kernel clients
+start graphs on this DSP successfully while GSL, driving the same firmware
+over the passthrough, is refused at APM_CMD_GRAPH_START for every graph
+tried, with a bare error and nothing in the DSP's own (hash-only) log. Six
+explanations have been eliminated by testing; what is left is to compare the
+two clients' packets directly.
+
+Off by default, toggled at runtime through
+/sys/module/apr/parameters/gpr_trace.
+
+diff --git a/drivers/soc/qcom/apr.c b/drivers/soc/qcom/apr.c
+index a956c407c..e05b239de 100644
+--- a/drivers/soc/qcom/apr.c
++++ b/drivers/soc/qcom/apr.c
+@@ -20,6 +20,34 @@ enum {
+ 	PR_TYPE_GPR,
+ };
+ 
++/*
++ * Log every GPR packet in both directions.
++ *
++ * Both the in-kernel clients and userspace (through audio_pkt) reach the DSP
++ * through this one router, so a tap here sees both without having to
++ * instrument either. That is the point: when one client's command succeeds
++ * and another's identical-looking command fails, the only way to settle what
++ * actually differs is to read the bytes.
++ *
++ * Off by default; toggle at runtime:
++ *   echo 1 > /sys/module/apr/parameters/gpr_trace
++ */
++static bool gpr_trace;
++module_param(gpr_trace, bool, 0644);
++MODULE_PARM_DESC(gpr_trace, "log every GPR packet to and from the DSP");
++
++/* Enough for a header plus a good deal of payload; graphs are far larger. */
++#define GPR_TRACE_MAX 256
++
++static void gpr_trace_pkt(const char *dir, const void *buf, int len)
++{
++	if (!gpr_trace)
++		return;
++
++	print_hex_dump(KERN_INFO, dir, DUMP_PREFIX_OFFSET, 32, 4, buf,
++		       min(len, GPR_TRACE_MAX), false);
++}
++
+ /* Some random values tbh which does not collide with static modules */
+ #define GPR_DYNAMIC_PORT_START	0x10000000
+ #define GPR_DYNAMIC_PORT_END	0x20000000
+@@ -132,6 +160,9 @@ static int pkt_router_send_svc_pkt(struct pkt_router_svc *svc, struct gpr_pkt *p
+ 
+ 	hdr = &pkt->hdr;
+ 
++	if (pr->type == PR_TYPE_GPR)
++		gpr_trace_pkt("gpr tx: ", pkt, hdr->pkt_size);
++
+ 	spin_lock_irqsave(&svc->lock, flags);
+ 	ret = rpmsg_trysend(pr->ch, pkt, hdr->pkt_size);
+ 	spin_unlock_irqrestore(&svc->lock, flags);
+@@ -274,6 +305,8 @@ static int gpr_do_rx_callback(struct packet_router *gpr, struct apr_rx_buf *abuf
+ 	if (ver > GPR_PKT_VER + 1)
+ 		return -EINVAL;
+ 
++	gpr_trace_pkt("gpr rx: ", buf, len);
++
+ 	hdr_size = hdr->hdr_size;
+ 	if (hdr_size < GPR_PKT_HEADER_WORD_SIZE) {
+ 		dev_err(gpr->dev, "GPR: Wrong hdr size:%d\n", hdr_size);

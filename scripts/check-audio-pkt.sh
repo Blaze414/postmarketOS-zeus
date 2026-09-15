@@ -15,6 +15,7 @@ trap cleanup EXIT
 
 cleanup
 git apply -p1 "$P"/0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
+git apply -p1 "$P"/0017-soc-qcom-apr-optional-gpr-packet-tracing.patch
 cp /work/src/kernel/audio_pkt.c /work/src/kernel/audio_pkt.h drivers/soc/qcom/
 
 grep -q CONFIG_QCOM_AUDIO_PKT .config || echo 'CONFIG_QCOM_AUDIO_PKT=y' >> .config

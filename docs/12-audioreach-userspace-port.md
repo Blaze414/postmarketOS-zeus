@@ -326,11 +326,71 @@ Note that the speaker and headphone graphs carry no WR_SHMEM_EP tag: stream
 `a1000003` puts it elsewhere, so a real playback client would have to find it
 by module id rather than by tag.
 
+## The side-by-side capture: GRAPH_START was never the failure
+
+Patch 0017 adds optional GPR packet tracing to the router
+(`/sys/module/apr/parameters/gpr_trace`). Every client - q6apm, q6prm and
+userspace through audio_pkt - goes through `pkt_router_send_svc_pkt()` and
+`gpr_do_rx_callback()`, so one tap sees them all.
+
+The two GRAPH_START packets are **structurally identical**:
+
+```
+kernel  tx  00004060 00000302 00000001 00000001 00000000 01001002 00000000 00000000
+            00000000 00000018 00000001 08001005 00000008 00000000 00000001 00004001
+        rx  ... 02001005 01001002 00000000        <- status 0
+GSL     tx  00004060 00000302 00002010 00000001 00013000 01001002 00000000 00000000
+            00000000 00000018 00000001 08001005 00000008 00000000 00000001 b00000d6
+        rx  ... 02001005 01001002 00000001        <- status 1
+```
+
+Same size, same domains, same destination, same `apm_cmd_header_t`
+(payload_size 0x18), same parameter (APM instance 1,
+APM_PARAM_ID_SUB_GRAPH_LIST 0x08001005, size 8), same count. The only field
+that differs is the subgraph id being started. So the command is well formed
+and the client is not the problem.
+
+**And GRAPH_START is not the first failure.** Scrolling back in the same
+capture:
+
+```
+GSL  tx  ... 01001006 ffdf8800 00000001 / b0d6b8c8 000002b8   <- SET_CFG, 696 bytes OOB
+     rx  ... 02001005 01001006 00000003                       <- status 3, AR_EUNSUPPORTED
+```
+
+Every one of the kernel's SET_CFGs returns 0. GSL's 696-byte configuration
+SET_CFG is **rejected as unsupported**, immediately after GRAPH_OPEN - and
+GSL does not treat that as fatal, so it was invisible from the API. The later
+GRAPH_START failure is a consequence of a graph whose modules were never
+configured, not a cause.
+
+696 bytes is exactly the size of this graph's non-persistent calibration
+(`acdbq` reports `cal(nonpersist, no ckv) rc=0 size=696`) - 25 parameters
+across module instances 0x458e-0x4598.
+
+### Correction: AMDB is not eliminated
+
+The earlier elimination table says AMDB was ruled out because
+`GSL_SKIP_DYN_MODULES=1` changed nothing. That test only shows the *attempt*
+to register modules does not matter. It does not show the modules are
+present - they are absent either way, since the DSP fetches their .so files
+over rfsa, which does not exist here. If one of the module instances in that
+calibration blob belongs to a module that was never loaded, SPF would answer
+exactly as observed.
+
+That is the leading hypothesis now, and unlike the previous ones it predicts
+something checkable: identify which of the 25 parameters SPF refused.
+
 ## Leads left
 
-- **Compare the two clients on the wire.** The kernel starts graphs on this
-  DSP successfully. Capturing its GRAPH_START packet and GSL's side by side
-  is the most direct remaining measurement, and the shim makes it easy.
+- **Find the refused parameter.** SPF returns EUNSUPPORTED for the whole
+  SET_CFG if any one parameter is unsupported, but it writes a per-parameter
+  `error_code` back into the out-of-band payload - which lives in memory this
+  port allocates, so it can be read back. Splitting the blob and sending one
+  parameter at a time would do as well. Either names the module.
+- **Then check that module against AMDB.** If it is one of the dynamically
+  loaded ones, the fix is to serve those .so files to the DSP (an rfsa
+  equivalent) or to drop the parameters belonging to them.
 - **ACDB version skew.** The calibration key-vector tables fail to parse
   (error 17, "CKV key table and value table offsets"), and no persistent
   calibration is found for subgraphs b0000002/b0000006. If this graphservices

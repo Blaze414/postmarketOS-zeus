@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=56
+pkgrel=57
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -54,6 +54,7 @@ source="
 	0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
 	0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
 	0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
+	0017-soc-qcom-apr-optional-gpr-packet-tracing.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
@@ -151,4 +152,5 @@ ea9c227c9182a29d9ece32f78e792bd1d03a9f24816596caf02319d8fa72cbea945e290d6e61ada9
 e0bc638edd8844b08984a9e6e87a3cd13a10e5a6d2d9bf97831833686d619d417c93cb8f1d353a7cb1fdce8df02c8baefa37d11ebdf600c5c9c3bd7f2089b704  0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
 29f1e4a91050722717c24a43ba571243ed525fd212f4b8a90464707061701ecc68cd3508db51ad91a9f2d6aa4ec054ebfaf675510d6bc966b2d2bcba96481531  0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
 aadec7dd1efb0beaa8516faea43aefa85b3c47315fa099c003e63c7c4652730b9765681fab5b280697a96e713dcd7e6ab37b2d009f446537889f242826c59f89  0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
+cd3df2e0bc09aedd9e5c21ee0a06d03bfcdc3c588a88625fbd95621931a1fa3f128876a0ba8aa9a929836b0a95ac25b245a170ad3c8568739f096cd8ad3b11a8  0017-soc-qcom-apr-optional-gpr-packet-tracing.patch
 "
