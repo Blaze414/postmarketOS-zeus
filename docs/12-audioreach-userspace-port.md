@@ -91,3 +91,69 @@ That, not the build, is the engineering.
    dedicated sink).
 
 Step 1 is bounded and answers the question. Steps 2-3 are the multi-week part.
+
+## Milestone 1: built, and it works
+
+The shim is `src/kernel/audio_pkt.c` plus patch 0016 (kernel r55, `#56`), and
+the DT node is `service@3` under `gpr` in the zeus dts. `/dev/aud_pasthru_adsp`
+appears, the router registers it (`Adding APR/GPR dev: gprsvc:service:2:3`),
+and GSL numbers its own ports through `gpr_alloc_port_id()` exactly as planned.
+
+`scripts/gsl/gprprobe.c` does the round trip with no GSL involved - one
+APM_CMD_GET_SPF_STATE out, the reply back on the port userspace picked:
+
+```
+tx 24 bytes: 00001860 00000302 00002003 00000001 5a5a0001 01001021
+rx 28 bytes: 00001c60 00000203 00000001 00002003 5a5a0001 02001007 00000001
+opcode 02001007 dest_port 00002003 token 5a5a0001
+OK: SPF state = 1
+```
+
+Worth noting on its own: q6apm's *own* copy of this handshake times out at
+every boot (`qcom-apm gprsvc:service:2:1: CMD timeout for [1001021] opcode`,
+~5s in), while the same command from userspace is answered immediately. The
+DSP is not slow to answer; something about how the in-kernel client waits is.
+That is a loose thread, not yet pulled.
+
+`scripts/gsl/gslprobe.c` then brings up GSL itself against the stock ACDB.
+GSL initialises, registers its ports, sends, and is answered - the whole
+transport works under the real client. It gets exactly as far as shared
+memory and stops:
+
+```
+[AOSH ar_shmem_alloc:144] vaddr(0x0xffffa6d98000)
+[gpr_dl_lx gpr_dl_lx_send:454] Sending buffer of size 44 to driver
+[gpr_dl_lx receiver_thread_loop:257] recieved buffer 2060 b00203 1 2002 size 32
+[gsl gsl_shmem_handle_rsp:279] Received unexpected rsp opcode 2001005, expected 2001001
+[gsl allocate_page:749] failed to map page with spf error 5
+[gsl gsl_do_load_bootup_dyn_modules:323] failed to register dynamic modules 5
+[gsl gsl_init:1104] dynamic module load failed 5
+```
+
+APM_CMD_SHARED_MEM_MAP_REGIONS is refused (the DSP answers
+GPR_BASIC_RSP_RESULT 0x2001005 instead of 0x2001001) because the page handed
+to it is an ordinary malloc'd one - `ar_osal_shmem_virtual.c`, chosen
+deliberately, since the control path was the question. The DSP cannot reach
+that memory.
+
+So milestone 1 is answered in full: **the transport is not the problem, and
+mainline needs no more than this shim to carry it.** What blocks the actual
+experiment is what the scoping said it would be, now confirmed rather than
+predicted: shared memory.
+
+## What milestone 2 has to do
+
+GSL needs pages the ADSP can map. The mainline pieces already exist:
+
+- `q6apmdai` in the devicetree carries `iommus = <&apps_smmu 0x1801 0x0>`,
+  the ADSP's stream id - it is the device q6apm-dai already allocates
+  playback buffers against.
+- dma-heap gives userspace an allocator with a dma-buf fd.
+- `ar_osal_shmem_db.c` in graphservices is *already* the dma-heap backend -
+  it wants `linux/msm_audio.h` only for the ioctl that asks the kernel to map
+  a buffer into the DSP's context.
+
+So the shape is: give `audio_pkt` an ioctl that takes a dma-buf fd, attaches
+and maps it against a device with the ADSP's SMMU context, and returns the
+device address; then point `ar_osal_shmem` at that instead of at msm_audio.
+That is the whole of the data path, and it is the next piece of work.

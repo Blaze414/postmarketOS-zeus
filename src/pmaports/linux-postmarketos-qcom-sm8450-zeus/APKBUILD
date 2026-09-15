@@ -10,7 +10,7 @@
 _flavor="postmarketos-qcom-sm8450-zeus"
 pkgname=linux-$_flavor
 pkgver=6.13.0_rc3
-pkgrel=52
+pkgrel=55
 pkgdesc="Mainline kernel fork for the Xiaomi 12 Pro (zeus)"
 arch="aarch64"
 _carch="arm64"
@@ -36,6 +36,7 @@ source="
 	$_config
 	sm8450-xiaomi-zeus.dts
 	panel-l2-38-0c-0a-dsc.c
+	audio_pkt.c
 	0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 	0002-fts-single-full-duplex-transfer-for-geni.patch
 	0003-fts-palm-rejection-and-panel-follower.patch
@@ -51,15 +52,19 @@ source="
 	0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch
 	0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
 	0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
+	0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
 "
 builddir="$srcdir/$_repo-$_commit"
 
 prepare() {
 	default_prepare
 
-	# Drop in the zeus devicetree and panel driver.
+	# Drop in the zeus devicetree, panel driver and the GPR passthrough
+	# char device. Patch 0016 adds audio_pkt.c's Kconfig/Makefile entries;
+	# the driver itself is copied so it stays an editable source file.
 	cp "$srcdir"/sm8450-xiaomi-zeus.dts arch/arm64/boot/dts/qcom/
 	cp "$srcdir"/panel-l2-38-0c-0a-dsc.c drivers/gpu/drm/panel/
+	cp "$srcdir"/audio_pkt.c drivers/soc/qcom/
 
 	# Register the devicetree. NB: this Makefile separates with a TAB.
 	local mk=arch/arm64/boot/dts/qcom/Makefile
@@ -124,9 +129,10 @@ package() {
 }
 sha512sums="
 75fbb81e0d2b1a0a6df41a6f6d0cf923074ebd1288354fa22647648bdfcd93413efaea55dd05d07132b5ef0cca62d5f137d7454d5455ef7044ac81d8b04ff385  linux-bf1d29fced6e156dd6090a9b6600a8c44259c114.tar.gz
-4c54d507fae3dc49f48ba8fae4b57805629d9a82d25711fa9f3f0228ae30c8c8396a248f1c410819a2662699be68538fcd66060419d3e665da2c0622897b689c  config-postmarketos-qcom-sm8450-zeus.aarch64
-28e23e9d640c1a15e79912f2dedbba01c6b66eaccce76fdda5111e4cdda8d2394d6018857a30cb3acc3e9e82a15ba1d1b844e31d25bd81614d25513a1ff9bc47  sm8450-xiaomi-zeus.dts
+ef75fba9c9f1f084020f4e60ccfd355e20223f402aad7de819fe4f8dc6fcbbd114c53fb7e480682e629d53c1f92146df28c9ebf40e6ff060442d60b571e5ec10  config-postmarketos-qcom-sm8450-zeus.aarch64
+296cbdfa245ca807139d7c216191334cac1fcbd6e7aeaa3dcc59c57a5b541c0d63a8e2bd87ee3706562eeb6fd6bc74bef7d3245adae7bccc78ad75cc4dfdd099  sm8450-xiaomi-zeus.dts
 ff3fae64733f48dc97748d17fa4a159a5dfe136fab80ab7373bb8d65446c747e5eae3244e76143cb24e7147ea9702bed251a7433d09d8b0be95f410a47ccdfd3  panel-l2-38-0c-0a-dsc.c
+871a168cf5a2472cf3d587f66dbb5e43fad750cb361d483bd9c5fd7abef82cc6e4f85afea2b2d9fef2c1a7c848fb5ad3b3bead282dc0de961a6352a4b0944d57  audio_pkt.c
 bfde6fad3117dec055efe88a6a60c2393b3f5297e5ffacc743ae519e0100ed296d9546b8e6b86d9a75bbeb53676946a05e9f6cec2e95f3f8e0a7729c325b9664  0001-mfd-qcom-pm8008-make-the-interrupt-optional.patch
 e6caa5447ed2ecae65f3b9a7af9d17e8367a04b018c9d9324add28690d3693729ffeceb3e78c38412cf36e93c4cb20d257969f3b3ac5bb89b262d746503f1d7a  0002-fts-single-full-duplex-transfer-for-geni.patch
 6d20f8cf621cb38bfc00bdd041d5baa191320b8ab8dfa82ec0a3e9a7749d373f903f4ec1a91da72aa7cbb83407c0cc8aa2648590ea3a067df16699e3a4a53033  0003-fts-palm-rejection-and-panel-follower.patch
@@ -142,4 +148,5 @@ fb223f1ee1f8dea9203edd58e24157630a8fd63eea6ee86db1fbc3c352cf03b2c871a1158077dd30
 ea9c227c9182a29d9ece32f78e792bd1d03a9f24816596caf02319d8fa72cbea945e290d6e61ada98101fa82b10d2a8ada43738fedd4fad700d2f4ce3aaee67a  0013-asoc-qcom-q6apm-open-graphs-from-vendor-blobs.patch
 e0bc638edd8844b08984a9e6e87a3cd13a10e5a6d2d9bf97831833686d619d417c93cb8f1d353a7cb1fdce8df02c8baefa37d11ebdf600c5c9c3bd7f2089b704  0014-asoc-qcom-sc8280xp-match-tdm-slot-width-to-the-amps.patch
 29f1e4a91050722717c24a43ba571243ed525fd212f4b8a90464707061701ecc68cd3508db51ad91a9f2d6aa4ec054ebfaf675510d6bc966b2d2bcba96481531  0015-asoc-qcom-audioreach-enable-tdm-data-out.patch
+aadec7dd1efb0beaa8516faea43aefa85b3c47315fa099c003e63c7c4652730b9765681fab5b280697a96e713dcd7e6ab37b2d009f446537889f242826c59f89  0016-soc-qcom-allow-registering-a-gpr-port-at-a-chosen-id.patch
 "

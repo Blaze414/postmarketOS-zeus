@@ -51,6 +51,7 @@ git -C "$APORTS" rev-parse --verify -q postmarketOS/main >/dev/null || {
 echo "==> syncing canonical sources into the kernel package"
 cp /work/src/dts/sm8450-xiaomi-zeus.dts       /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
 cp /work/src/panel/panel-l2-38-0c-0a-dsc.c    /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
+cp /work/src/kernel/audio_pkt.c               /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/
 
 # --- our packages, refreshed from /work every run ---
 echo "==> installing zeus packages into pmaports"
@@ -116,6 +117,22 @@ echo "==> installing rootfs"
 # pmbootstrap export writes symlinks into the container volume, which dangle on
 # the macOS side, and it refuses to overwrite an existing file. Copy the real
 # artifacts out instead.
+# apk will not downgrade. If the rootfs already carries a HIGHER pkgrel than
+# the one just built - easy to do, since the aports copy's pkgrel can drift
+# ahead of the one in git - the install silently keeps the old kernel and the
+# image you then flash is the previous build. That cost a full flash-and-test
+# cycle once; fail loudly instead.
+echo "==> verifying the freshly built kernel is the one installed"
+KREL=$(grep '^pkgrel=' /work/src/pmaports/linux-postmarketos-qcom-sm8450-zeus/APKBUILD | cut -d= -f2)
+KVER=$(sudo grep -A1 '^P:linux-postmarketos-qcom-sm8450-zeus$' \
+	/src/pmb-work/chroot_rootfs_xiaomi-zeus/lib/apk/db/installed | sed -n 's/^V://p')
+case "$KVER" in
+  *-r"$KREL") echo "    ok: installed $KVER" ;;
+  *) echo "!! installed kernel is $KVER but this build is r$KREL."
+     echo "!! apk kept the older package - raise pkgrel above it and rebuild."
+     exit 1 ;;
+esac
+
 echo "==> exporting"
 OUT=/work/out/pmb
 sudo rm -rf "$OUT"; mkdir -p "$OUT"

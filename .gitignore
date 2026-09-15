@@ -6,3 +6,7 @@ upstream/
 out/
 firmware-dump/
 src/pmaports/firmware-xiaomi-zeus/*.tar.gz
+# Built artefacts from the local GSL build
+scripts/gsl/gslprobe
+scripts/gsl/gprprobe
+__pycache__/

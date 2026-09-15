@@ -1358,6 +1358,27 @@
 	};
 };
 
+/*
+ * Raw GPR passthrough to the ADSP, for Qualcomm's AudioReach userspace.
+ *
+ * GSL opens /dev/aud_pasthru_adsp and exchanges GPR packets with the DSP's
+ * signal processing framework directly. The driver behind that node needs a
+ * device on the packet router to reach the router itself, so it is a GPR
+ * service like q6apm (1) and q6prm (2) - but only nominally: nothing is ever
+ * addressed to service 3, and it claims no hardware. It waits on the same
+ * audio protection domain, so the device appears only once the DSP is up.
+ */
+&remoteproc_adsp_glink {
+	gpr {
+		audio_pkt: service@3 {
+			compatible = "qcom,audio-pkt";
+			reg = <3>;
+			qcom,protection-domain = "avs/audio",
+						 "msm/adsp/audio_pd";
+		};
+	};
+};
+
 &sound {
 	compatible = "qcom,sm8450-sndcard";
 	pinctrl-names = "default", "sleep";

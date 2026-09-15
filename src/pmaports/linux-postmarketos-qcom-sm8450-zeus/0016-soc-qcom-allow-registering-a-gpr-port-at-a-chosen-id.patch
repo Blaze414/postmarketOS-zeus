@@ -1,0 +1,127 @@
+From: Yusuf Al Zadid <yusufalzadid@gmail.com>
+Subject: [PATCH] soc: qcom: allow registering a GPR port at a chosen id
+
+gpr_alloc_port() only ever hands out a cyclic dynamic id from a private
+range, which is all an in-kernel client needs: it picks a port, the ADSP
+echoes it back, the router finds it again.
+
+Userspace clients do not work that way. Qualcomm's AudioReach userspace
+(GSL) numbers its own ports - GSL_MAIN_SRC_PORT 0x2003, GSL_SHMEM_SRC_PORT
+0x2002, one per graph from 0x2010 - and puts them in the packets it writes.
+Transmit does not care: pkt_router_send_svc_pkt() sends the packet verbatim.
+Receive does: gpr_do_rx_callback() looks hdr->dest_port up in svcs_idr and
+drops anything it cannot find, with "GPR: Port(%x) is not registered". So a
+passthrough driver has to register a port at the exact id userspace chose.
+
+Split the allocation out so a caller can ask for a specific id, keeping
+gpr_alloc_port() as the dynamic case, and add the Kconfig/Makefile entries
+for the audio_pkt driver that uses it. That driver itself is dropped in by
+the package's prepare(), so that it stays editable as a source file.
+
+diff --git a/drivers/soc/qcom/Kconfig b/drivers/soc/qcom/Kconfig
+index 74b912124..4426b2bb8 100644
+--- a/drivers/soc/qcom/Kconfig
++++ b/drivers/soc/qcom/Kconfig
+@@ -267,6 +267,14 @@ config QCOM_APR
+ 	  used by audio driver to configure QDSP6
+ 	  ASM, ADM and AFE modules.
+ 
++config QCOM_AUDIO_PKT
++	tristate "Qualcomm GPR passthrough character device"
++	depends on QCOM_APR
++	help
++	  Expose /dev/aud_pasthru_adsp, over which userspace can exchange raw
++	  GPR packets with the audio DSP. This is the interface Qualcomm's
++	  AudioReach userspace (GSL) expects; it is of no use without it.
++
+ config QCOM_ICC_BWMON
+ 	tristate "QCOM Interconnect Bandwidth Monitor driver"
+ 	depends on ARCH_QCOM || COMPILE_TEST
+diff --git a/drivers/soc/qcom/Makefile b/drivers/soc/qcom/Makefile
+index acbca2ab5..41ffd9856 100644
+--- a/drivers/soc/qcom/Makefile
++++ b/drivers/soc/qcom/Makefile
+@@ -33,6 +33,7 @@ obj-$(CONFIG_QCOM_SPM)		+= spm.o
+ obj-$(CONFIG_QCOM_STATS)	+= qcom_stats.o
+ obj-$(CONFIG_QCOM_WCNSS_CTRL) += wcnss_ctrl.o
+ obj-$(CONFIG_QCOM_APR) += apr.o
++obj-$(CONFIG_QCOM_AUDIO_PKT) += audio_pkt.o
+ obj-$(CONFIG_QCOM_LLCC) += llcc-qcom.o
+ obj-$(CONFIG_QCOM_KRYO_L2_ACCESSORS) +=	kryo-l2-accessors.o
+ obj-$(CONFIG_QCOM_ICC_BWMON)	+= icc-bwmon.o
+diff --git a/drivers/soc/qcom/apr.c b/drivers/soc/qcom/apr.c
+index a956c407c..42a7ba40a 100644
+--- a/drivers/soc/qcom/apr.c
++++ b/drivers/soc/qcom/apr.c
+@@ -87,8 +87,9 @@ void gpr_free_port(gpr_port_t *port)
+ }
+ EXPORT_SYMBOL_GPL(gpr_free_port);
+ 
+-gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
+-				gpr_port_cb cb,	void *priv)
++static gpr_port_t *gpr_alloc_port_common(struct apr_device *gdev,
++					 struct device *dev, gpr_port_cb cb,
++					 void *priv, int want_id)
+ {
+ 	struct packet_router *pr = dev_get_drvdata(gdev->dev.parent);
+ 	gpr_port_t *port;
+@@ -107,10 +108,15 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
+ 	spin_lock_init(&svc->lock);
+ 
+ 	spin_lock(&pr->svcs_lock);
+-	id = idr_alloc_cyclic(&pr->svcs_idr, svc, GPR_DYNAMIC_PORT_START,
+-			      GPR_DYNAMIC_PORT_END, GFP_ATOMIC);
++	if (want_id >= 0)
++		id = idr_alloc(&pr->svcs_idr, svc, want_id, want_id + 1,
++			       GFP_ATOMIC);
++	else
++		id = idr_alloc_cyclic(&pr->svcs_idr, svc,
++				      GPR_DYNAMIC_PORT_START,
++				      GPR_DYNAMIC_PORT_END, GFP_ATOMIC);
+ 	if (id < 0) {
+-		dev_err(dev, "Unable to allocate dynamic GPR src port\n");
++		dev_err(dev, "Unable to allocate GPR src port\n");
+ 		kfree(port);
+ 		spin_unlock(&pr->svcs_lock);
+ 		return ERR_PTR(id);
+@@ -121,8 +127,27 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
+ 
+ 	return port;
+ }
++
++gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
++				gpr_port_cb cb,	void *priv)
++{
++	return gpr_alloc_port_common(gdev, dev, cb, priv, -1);
++}
+ EXPORT_SYMBOL_GPL(gpr_alloc_port);
+ 
++/*
++ * Register a port at a specific id, for clients that number their own ports
++ * rather than take whatever the router hands out - see the audio_pkt
++ * passthrough driver, which has to honour the ids its userspace chose.
++ * Fails with -ENOSPC if the id is already taken.
++ */
++gpr_port_t *gpr_alloc_port_id(struct apr_device *gdev, struct device *dev,
++				gpr_port_cb cb, void *priv, int id)
++{
++	return gpr_alloc_port_common(gdev, dev, cb, priv, id);
++}
++EXPORT_SYMBOL_GPL(gpr_alloc_port_id);
++
+ static int pkt_router_send_svc_pkt(struct pkt_router_svc *svc, struct gpr_pkt *pkt)
+ {
+ 	struct packet_router *pr = svc->pr;
+diff --git a/include/linux/soc/qcom/apr.h b/include/linux/soc/qcom/apr.h
+index a532d1e4b..b8c8dbcec 100644
+--- a/include/linux/soc/qcom/apr.h
++++ b/include/linux/soc/qcom/apr.h
+@@ -190,6 +190,8 @@ int apr_send_pkt(struct apr_device *adev, struct apr_pkt *pkt);
+ 
+ gpr_port_t *gpr_alloc_port(gpr_device_t *gdev, struct device *dev,
+ 				gpr_port_cb cb, void *priv);
++gpr_port_t *gpr_alloc_port_id(gpr_device_t *gdev, struct device *dev,
++				gpr_port_cb cb, void *priv, int id);
+ void gpr_free_port(gpr_port_t *port);
+ int gpr_send_port_pkt(gpr_port_t *port, struct gpr_pkt *pkt);
+ int gpr_send_pkt(gpr_device_t *gdev, struct gpr_pkt *pkt);
