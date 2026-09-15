@@ -27,6 +27,8 @@
 #include "gsl_hw_rsc_intf.h"
 #include "prm_api.h"
 #include "hw_core_api.h"
+#include "media_fmt_api_basic.h"
+#include <stddef.h>
 
 void ar_log_init(void);
 
@@ -74,6 +76,68 @@ static int32_t vote_lpass_core(void)
 	rc = gsl_request_hw_rsc_custom_config((const uint8_t *)&p, sizeof(p),
 					      NULL, NULL);
 	printf("LPASS core vote: %d (%s)\n", rc, rc ? "FAILED" : "OK");
+
+	return rc;
+}
+
+/*
+ * Tell the stream's write endpoint what the data looks like.
+ *
+ * A container cannot start a module whose input media format is unknown, so a
+ * graph with no format set refuses GRAPH_START - which matches what is seen
+ * here: every graph opens and prepares and none of them starts, whether or not
+ * it even has a hardware endpoint. The in-kernel path does the same thing in
+ * q6apm_graph_media_format_pcm() before it prepares or starts.
+ *
+ * The payload is SPF's out-of-band form, {miid, pid, size, error_code}
+ * followed by the parameter.
+ */
+static int32_t set_media_format(gsl_handle_t graph,
+				const struct gsl_key_vector *gkv)
+{
+	struct gsl_module_id_info *info = NULL;
+	uint32_t info_size = 0;
+	int32_t rc;
+	struct {
+		uint32_t miid;
+		uint32_t pid;
+		uint32_t size;
+		uint32_t error_code;
+		media_format_t fmt;
+		payload_media_fmt_pcm_t pcm;
+		uint8_t channel_map[2];
+	} p;
+
+	rc = gsl_get_tagged_module_info(gkv, SHMEM_ENDPOINT, &info, &info_size);
+	if (rc || !info || !info->num_modules) {
+		printf("no module tagged SHMEM_ENDPOINT: %d\n", rc);
+		return rc ? rc : -1;
+	}
+
+	memset(&p, 0, sizeof(p));
+	p.miid = info->module_entry[0].module_iid;
+	p.pid = PARAM_ID_MEDIA_FORMAT;
+	p.size = sizeof(p) - offsetof(typeof(p), fmt);
+	p.fmt.data_format = DATA_FORMAT_FIXED_POINT;
+	p.fmt.fmt_id = MEDIA_FMT_ID_PCM;
+	p.fmt.payload_size = sizeof(p.pcm) + sizeof(p.channel_map);
+	p.pcm.sample_rate = 48000;
+	p.pcm.bit_width = 16;
+	p.pcm.alignment = PCM_LSB_ALIGNED;
+	p.pcm.interleaved = PCM_INTERLEAVED;
+	p.pcm.bits_per_sample = 16;
+	p.pcm.q_factor = 15;
+	p.pcm.endianness = PCM_LITTLE_ENDIAN;
+	p.pcm.num_channels = 2;
+	p.channel_map[0] = 1;	/* front left */
+	p.channel_map[1] = 2;	/* front right */
+
+	printf("media format -> miid 0x%x (48k/16/2)\n", p.miid);
+	rc = gsl_set_custom_config(graph, (const uint8_t *)&p, sizeof(p));
+	printf("gsl_set_custom_config MEDIA_FORMAT: %d (%s)\n", rc,
+	       rc ? "FAILED" : "OK");
+
+	free(info);
 
 	return rc;
 }
@@ -155,6 +219,8 @@ static int32_t open_graph(int nkv, char **kvargs)
 	rc = gsl_ioctl(graph, GSL_CMD_CONFIGURE_WRITE_PARAMS, &wr, sizeof(wr));
 	printf("gsl_ioctl CONFIGURE_WRITE_PARAMS: %d (%s)\n", rc,
 	       rc ? "FAILED" : "OK");
+
+	set_media_format(graph, &gkv);
 
 	rc = gsl_ioctl(graph, GSL_CMD_PREPARE, NULL, 0);
 	printf("gsl_ioctl PREPARE: %d (%s)\n", rc, rc ? "FAILED" : "OK");

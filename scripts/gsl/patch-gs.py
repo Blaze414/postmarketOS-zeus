@@ -33,6 +33,34 @@ EDITS = [
 			rc = AR_EOK;
 		}""",
     ),
+    (
+        "gsl/src/gsl_dynamic_module_mgr.c",
+        # Skipping the dynamic modules is not the same as attempting them and
+        # failing. Registration and load both go to the DSP's AMDB, and both
+        # are refused here; whether that leaves AMDB in a state that breaks
+        # later graph starts is exactly what needs testing, since every graph
+        # - even one with no hardware endpoint - fails at GRAPH_START.
+        #
+        # Set GSL_SKIP_DYN_MODULES in the environment to not touch AMDB at all.
+        """	if (gsl_dyn_mod_mgr_ctxt[master_proc] == NULL)
+		goto exit;
+
+	/* TODO: only register if master proc is booting up */""",
+        """	if (gsl_dyn_mod_mgr_ctxt[master_proc] == NULL)
+		goto exit;
+
+	if (getenv("GSL_SKIP_DYN_MODULES")) {
+		GSL_ERR("GSL_SKIP_DYN_MODULES set, leaving AMDB untouched");
+		goto exit;
+	}
+
+	/* TODO: only register if master proc is booting up */""",
+    ),
+    (
+        "gsl/src/gsl_dynamic_module_mgr.c",
+        '#include "gsl_dynamic_module_mgr.h"',
+        '#include <stdlib.h>\n#include "gsl_dynamic_module_mgr.h"',
+    ),
 ]
 
 

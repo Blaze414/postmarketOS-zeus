@@ -273,16 +273,71 @@ PRM_MODULE_INSTANCE_ID). The DSP **receives** it - the diag log shows
 but never answers, and the request times out (AR_ETIMEOUT). The payload shape
 is inferred from `hw_core_api.h` and is the most likely thing to be wrong.
 
-So the next step is to get that vote accepted:
+That turned out not to be it. The LPASS core is **already voted on** - the
+codec macros hold it, and have since boot:
 
-- Check the request payload against what PRM expects; `gsl_request_hw_rsc_config()`
-  with an ACDB lookup may be the intended route rather than the custom one.
-- The LPASS bit clock (`PARAM_ID_RSC_AUDIO_HW_CLK`) will be needed as well as
-  the core vote.
-- Or sidestep it: have the kernel hold the votes (q6prm already implements
-  them) while GSL drives the graph. Less faithful to the Android stack, but
-  it settles whether clocks are the whole story.
+```
+# grep LPASS_HW /sys/kernel/debug/clk/clk_summary
+ LPASS_HW_DCODEC   4  4  ...  Y  3220000.codec  dcodec
+ LPASS_HW_MACRO    4  4  ...  Y  3220000.codec  macro
+```
 
-Still open, and probably secondary: ACDB's CKV lookup fails with error 17 and
-no persistent calibration is found for subgraphs b0000002/b0000006. Only one
-ACDB file is loaded here; Android passes several.
+So the core being unpowered cannot be the reason, and there was no need to
+have the kernel hold the vote. (GSL's own request still times out - the DSP
+receives PRM_CMD_REQUEST_HW_RSC and does not answer - so the payload shape
+guessed from `hw_core_api.h` is wrong, but it no longer matters here.)
+
+## What GRAPH_START is not
+
+Each of these was tested on the device and eliminated:
+
+| Suspect | Test | Result |
+|---|---|---|
+| Speaker/TDM specific | headphone graph `a2000000=a2000002` | fails identically |
+| Any hardware endpoint | `a1000000=a1000013`, stream only, no device | fails identically |
+| Any stream | `a2000000=a2000001`, device only, no stream | fails identically |
+| LPASS core unpowered | `clk_summary` | already voted, count 4 |
+| Data path not provisioned | `GSL_CMD_CONFIGURE_WRITE_PARAMS` | succeeds |
+| Broken AMDB state after the failed module load | `GSL_SKIP_DYN_MODULES=1`, leaving AMDB untouched | fails identically |
+| Stream media format never set | `PARAM_ID_MEDIA_FORMAT` to the endpoint tagged `c0000001` (WR_SHMEM_EP, miid 0x458e) before prepare | accepted, still fails |
+| Another client holding the path | with `aplay` running, GRAPH_OPEN fails instead | not the case when idle |
+
+So: GRAPH_OPEN, SET_CFG, media format, write-params and GRAPH_PREPARE are all
+accepted for every graph tried, and GRAPH_START is refused for every graph
+tried, with a bare AR_EFAILED and nothing in the DSP log that resolves.
+
+Worth keeping in view: the kernel's own graphs *do* start on this DSP right
+now - headphone playback through ALSA works. So the DSP is not refusing
+GRAPH_START as such. It is refusing these graphs, or refusing this client.
+
+### Tag map, as a by-product
+
+`scripts/acdb/acdbtag.c` gives the module tags per graph, which is how the
+media-format endpoint was found:
+
+```
+a1000000=a1000013                  c0000001: 07001000/458e   WR_SHMEM_EP
+a1000000=a1000003 a2000000=a2000001 c0000004: 0700100e/4881  TDM_SINK
+                                    c0000040: 07001098/40e1  MUX_DEMUX
+a1000000=a1000003 a2000000=a2000002 c0000004: 07001023/43b2  CODEC_DMA_SINK
+```
+
+Note that the speaker and headphone graphs carry no WR_SHMEM_EP tag: stream
+`a1000003` puts it elsewhere, so a real playback client would have to find it
+by module id rather than by tag.
+
+## Leads left
+
+- **Compare the two clients on the wire.** The kernel starts graphs on this
+  DSP successfully. Capturing its GRAPH_START packet and GSL's side by side
+  is the most direct remaining measurement, and the shim makes it easy.
+- **ACDB version skew.** The calibration key-vector tables fail to parse
+  (error 17, "CKV key table and value table offsets"), and no persistent
+  calibration is found for subgraphs b0000002/b0000006. If this graphservices
+  checkout misreads parts of a vendor database written for an older ACDB, the
+  subgraph blobs sent at GRAPH_OPEN could be subtly wrong in a way the DSP
+  only acts on at start. Only one ACDB file is loaded here; Android loads
+  several.
+- **Resolving the DSP's own messages** would end the guessing, but needs the
+  ADSP QShrink database, which is not on the phone - or tracing the code that
+  references each log descriptor, as in doc 11.
