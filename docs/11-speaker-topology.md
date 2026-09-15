@@ -559,3 +559,53 @@ container waits on) is what is still missing. That is the next thread to pull.
 
 `Xiaomi-12-tdm-nomfc-tplg.bin` kept in `out/` for reference; device restored to
 the HDK topology (headphones) after the test.
+
+## Decisive trace: the endpoint HW configures, but the stream MF and data never reach it
+
+Captured the DSP F3/QShrink diag across a playback attempt on both back ends on
+the same loaded topology (Xiaomi-12-tdm-mfc), and compared them directly.
+
+Working headphone path (CODEC_DMA sink, module 0x6072):
+    line=195 hash=ad4d6edb args=[<cont>, 0x6001, 0x0, 0x5001004, <buf>, 0x20, 0xbb80000N]
+  repeated ~12x - the write-shmem EP (0x6001) completing buffers (0x5001004 =
+  buffer done) as the sink pulls data. bufdone=12, underrun=0. Data flows.
+
+Broken speaker path (TDM sink, module 0x60a2):
+    line=1127 hash=a7d7daa5 args=[<cont>, 0x60a2, 0x2, 0x3e8, 0x30, 0xbb80, 0xc0]
+  fires exactly once (2 ch, 48000 Hz, 48 samples/ms, 192 bytes/ms - the
+  endpoint's own HW media format, computed correctly), then NO buffer-done
+  events at all. bufdone=0, underrun=27, media_format_set=0.
+
+So, established as fact (not inference):
+1. The TDM endpoint's hardware media format is configured correctly (line 1127).
+2. Its input *data* port never receives a stream media format (media_format_set
+   stays 0) and no buffer ever flows through the graph to it (0 buffer-dones),
+   whereas the structurally identical codec-DMA graph flows normally.
+3. Line 1127 (disassembled to 0xb027aaf8) is a media-format/buffer-timing
+   computation log in a shared helper - not an error gate; it does not reject.
+
+The TDM sink runs its own 1 ms timer (hence the periodic underruns) but never
+pulls upstream, because its data port has no media format. In SPF that MF
+propagates from the upstream module's output-MF event; it reaches a codec-DMA
+sink here but not a TDM sink, with identical graph structure and an identical
+endpoint acceptance check (proven earlier by disassembly).
+
+## Conclusion: an architecture gap, not a fixable config
+
+After exhausting endpoint module id/interface/lane, clocking, sample
+format/rate, graph start order, container properties, the stub codec, a
+byte-for-byte stock-ACDB graph replay, MFC removal, the stock TDM frame shape,
+and now a firmware-level trace, the failure is consistent and localised:
+mainline's topology-driven q6apm/audioreach never gets the DSP container to
+propagate a stream media format (and therefore data) to a **TDM hardware-endpoint
+sink**, though it does for a codec-DMA sink. No mainline device drives speakers
+through a q6apm TDM sink - the validated hardware-endpoint sinks are codec-DMA
+(SoundWire) and I2S. The vendor stack drives this path from userspace (AGM/GSL)
+with per-endpoint negotiation sequenced against the ACDB; the mainline kernel
+path does not reproduce that for TDM.
+
+This is treated as the root-cause verdict: internal speakers are blocked on
+audioreach TDM-sink playback support that mainline does not have, not on a zeus
+topology/param mistake. Reopen if upstream audioreach gains TDM-sink render
+support, or if the wcd/wsa or an I2S-sink framing of the tertiary port proves
+viable. USB-C audio remains the working output.
