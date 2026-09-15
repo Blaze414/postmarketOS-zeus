@@ -61,6 +61,101 @@ EDITS = [
         '#include "gsl_dynamic_module_mgr.h"',
         '#include <stdlib.h>\n#include "gsl_dynamic_module_mgr.h"',
     ),
+    (
+        "gsl/src/gsl_graph.c",
+        # The non-persistent calibration SET_CFG is refused wholesale with
+        # AR_EUNSUPPORTED, and GSL only logs the overall result. SPF writes a
+        # per-parameter error_code back into the out-of-band payload, which is
+        # still mapped here - so walk it and name the parameters that failed.
+        """		GSL_ERR("get non-persist data (cal) failed %d", rc);
+		goto exit;
+	}
+""",
+        """		GSL_ERR("get non-persist data (cal) failed %d", rc);
+		goto exit;
+	}
+
+	/*
+	 * Drop the entries Spf will not accept at configuration time.
+	 *
+	 * A subgraph's non-persistent calibration is not purely configuration:
+	 * it also carries placeholders the client is expected to fill in, and
+	 * runtime commands that only mean something once the graph is running.
+	 * Sent verbatim at open, Spf refuses them - and refuses the whole
+	 * APM_CMD_SET_CFG with it, so every parameter after the first bad one
+	 * goes unapplied and the graph is left half configured. It then opens
+	 * and prepares happily and fails at GRAPH_START with a bare error,
+	 * which is a long way from the cause.
+	 *
+	 * Observed on this device, in this order, with the media format first:
+	 *   miid 0x458e PARAM_ID_MEDIA_FORMAT   size 12 -> AR_EUNSUPPORTED
+	 *   miid 0x4595 PARAM_ID_SOFT_PAUSE_START size 0 -> AR_EFAILED
+	 *
+	 * Both are dropped by shape rather than by id: a media format whose
+	 * payload is empty conveys no format, and a zero-length parameter is a
+	 * command rather than a setting. The real media format is sent
+	 * separately by the client once the data path is configured.
+	 */
+	{
+		uint8_t *buf = (uint8_t *)gsl_msg.payload;
+		uint32_t off = 0, kept = 0;
+
+		while (off + sizeof(apm_module_param_data_t) <=
+		       rsp_struct.buf_size) {
+			apm_module_param_data_t *p =
+				(apm_module_param_data_t *)(buf + off);
+			uint32_t len = sizeof(*p) +
+				GSL_ALIGN_8BYTE(p->param_size);
+			bool_t drop = (p->param_size == 0) ||
+				(p->param_id == PARAM_ID_MEDIA_FORMAT &&
+				 p->param_size <= sizeof(media_format_t));
+
+			if (off + len > rsp_struct.buf_size)
+				break;
+
+			if (drop) {
+				GSL_ERR("cal: dropping miid 0x%x pid 0x%x size %d",
+					p->module_instance_id, p->param_id,
+					p->param_size);
+			} else {
+				if (kept != off)
+					memmove(buf + kept, buf + off, len);
+				kept += len;
+			}
+			off += len;
+		}
+		rsp_struct.buf_size = kept;
+	}
+""",
+    ),
+    (
+        "gsl/src/gsl_graph.c",
+        '#include "acdb.h"',
+        '#include <string.h>\n#include "media_fmt_api_basic.h"\n#include "acdb.h"',
+    ),
+    (
+        "gsl/src/gsl_graph.c",
+        # and report what Spf refused, whatever survives the filter
+        """	if (rc)
+		GSL_ERR("send non-perist cal failed %d", rc);""",
+        """	if (rc) {
+		uint32_t off = 0;
+
+		GSL_ERR("send non-perist cal failed %d", rc);
+		while (off + sizeof(apm_module_param_data_t) <=
+		       rsp_struct.buf_size) {
+			apm_module_param_data_t *p =
+				(apm_module_param_data_t *)
+				((uint8_t *)gsl_msg.payload + off);
+
+			if (p->error_code)
+				GSL_ERR("  cal param miid 0x%x pid 0x%x size %d -> error %d",
+					p->module_instance_id, p->param_id,
+					p->param_size, p->error_code);
+			off += sizeof(*p) + GSL_ALIGN_8BYTE(p->param_size);
+		}
+	}""",
+    ),
 ]
 
 

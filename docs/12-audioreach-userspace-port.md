@@ -381,16 +381,77 @@ exactly as observed.
 That is the leading hypothesis now, and unlike the previous ones it predicts
 something checkable: identify which of the 25 parameters SPF refused.
 
+## The rejected parameters, named - and fixed
+
+SPF writes a per-parameter `error_code` back into the out-of-band payload,
+and that payload is in memory this port allocates, so it can simply be read
+back. Two of the 25 parameters were refused:
+
+```
+cal param miid 0x458e pid 0x800100c size 12 -> error 3   PARAM_ID_MEDIA_FORMAT
+cal param miid 0x4595 pid 0x800102e size  0 -> error 1   PARAM_ID_SOFT_PAUSE_START
+```
+
+Neither is configuration. `0x458e` is the write shared-memory endpoint and
+the media format carries a header with **no payload** - a placeholder the
+client is expected to fill in. `0x4595` is MODULE_ID_SOFT_PAUSE, and
+PARAM_ID_SOFT_PAUSE_START is a runtime command, meaningless before the graph
+runs. Sent verbatim at open, SPF refuses them and refuses the entire
+SET_CFG with them.
+
+`patch-gs.py` now filters both out by shape rather than by id - a media
+format with an empty payload conveys no format, and a zero-length parameter
+is a command rather than a setting. With that, the configuration SET_CFG
+returns 0, and the whole session is clean except for GRAPH_START:
+
+```
+02001005 01001000 00000000    GRAPH_OPEN
+02001005 01001006 00000000    SET_CFG   (was status 3)
+02001005 01001006 00000000    SET_CFG   media format
+02001005 0100100d 00000000    memory map
+02001005 01001001 00000000    GRAPH_PREPARE
+02001005 01001002 00000001    GRAPH_START   <- the only failure left
+```
+
+That is a real defect found and fixed. It did not make audio play.
+
+## What the graphs actually are
+
+A discovery that reframes the earlier attempts: on this device the speaker
+"graph" is **device-only**. `a1000000=a1000003 a2000000=a2000001` contains
+TDM_SINK, SAL, SPLITTER, MFC, DATA_LOGGING, PCM_CNV and MUX_DEMUX - and no
+WR_SHMEM_EP at all. It has no source, so nothing ever gives it a media
+format. The stream graph `a1000000=a1000013` is the mirror image: write
+endpoint, decoder, soft pause and MODULE_ID_SPR, with nothing downstream of
+the renderer. Neither can start alone, which is why both failed identically
+and why the elimination table read as "everything fails".
+
+The complete playback use case is a single key vector covering both, and it
+exists: `a1000000=a1000005 a2000000=a2000001 ac000000=ac000003` - four
+subgraphs, a 2528-byte graph, containing both WR_SHMEM_EP (0x07001000) and
+TDM_SINK (0x0700100e). (`GSL_CMD_ADD_GRAPH` to bolt the device onto the
+stream is refused with AR_ENOTEXIST: the union of those two key vectors is
+not a use case the database knows.)
+
+Run against that graph, with calibration applied cleanly and a real media
+format set on the actual endpoint (miid 0x4038), everything still succeeds
+and GRAPH_START still fails. It now starts four subgraphs, the first being
+**b0000002** - the speaker device subgraph, the same one doc 11 found never
+receives a media format, and the one the database has no calibration for.
+
 ## Leads left
 
-- **Find the refused parameter.** SPF returns EUNSUPPORTED for the whole
-  SET_CFG if any one parameter is unsupported, but it writes a per-parameter
-  `error_code` back into the out-of-band payload - which lives in memory this
-  port allocates, so it can be read back. Splitting the blob and sending one
-  parameter at a time would do as well. Either names the module.
-- **Then check that module against AMDB.** If it is one of the dynamically
-  loaded ones, the fix is to serve those .so files to the DSP (an rfsa
-  equivalent) or to drop the parameters belonging to them.
+- **Narrow GRAPH_START to one subgraph.** It now starts four at once and the
+  DSP answers with a single status. Opening use cases whose graphs are
+  subsets, or patching GSL to send the subgraph list one id at a time, would
+  say which subgraph is refused. b0000002 is the prime suspect - it is first
+  in the list, it is the speaker device subgraph, and the database has no
+  calibration for it.
+- **Persistent calibration.** Only non-persistent calibration is being sent.
+  `AcdbCmdGetProcSubgraphCalDataPersist` reports "No calibration found" for
+  b0000002 and b0000006, and the CKV lookup that would select it fails with
+  error 17. A device subgraph with no calibration at all may simply be
+  unstartable.
 - **ACDB version skew.** The calibration key-vector tables fail to parse
   (error 17, "CKV key table and value table offsets"), and no persistent
   calibration is found for subgraphs b0000002/b0000006. If this graphservices

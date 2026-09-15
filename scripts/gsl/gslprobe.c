@@ -172,11 +172,12 @@ static void play_tone(gsl_handle_t graph)
 	gsl_ioctl(graph, GSL_CMD_STOP, NULL, 0);
 }
 
-static int32_t open_graph(int nkv, char **kvargs)
+static int32_t open_graph(int nkv, char **kvargs, int dev_nkv, char **devargs)
 {
 	struct gsl_cmd_configure_read_write_params wr;
 	struct gsl_key_value_pair kvp[MAX_KVPS];
-	struct gsl_key_vector gkv;
+	struct gsl_cmd_graph_select sel;
+	struct gsl_key_vector gkv, full;
 	gsl_handle_t graph = NULL;
 	int32_t rc;
 
@@ -193,6 +194,32 @@ static int32_t open_graph(int nkv, char **kvargs)
 
 	gkv.num_kvps = nkv;
 	gkv.kvp = kvp;
+
+	/*
+	 * A playback use case is two graphs on this device, not one. The stream
+	 * graph holds the write endpoint and the renderer; the device graph
+	 * holds the hardware sink and its processing. Opened on its own,
+	 * neither can start - the stream has nothing downstream of its
+	 * renderer, and the device has no source and so never gets a media
+	 * format. Everything before START succeeds either way, which is what
+	 * made this so hard to see.
+	 *
+	 * Open the stream graph, then add the device graph to it. ADD_GRAPH
+	 * takes the union of the key vectors.
+	 */
+	if (dev_nkv) {
+		for (int i = 0; i < dev_nkv && nkv < MAX_KVPS; i++, nkv++) {
+			if (sscanf(devargs[i], "%x=%x", &kvp[nkv].key,
+				   &kvp[nkv].value) != 2) {
+				fprintf(stderr, "bad key=value: %s\n", devargs[i]);
+				return -1;
+			}
+			printf("  dev[%d] %08x=%08x\n", i, kvp[nkv].key,
+			       kvp[nkv].value);
+		}
+		full.num_kvps = nkv;
+		full.kvp = kvp;
+	}
 
 	vote_lpass_core();
 
@@ -219,6 +246,14 @@ static int32_t open_graph(int nkv, char **kvargs)
 	rc = gsl_ioctl(graph, GSL_CMD_CONFIGURE_WRITE_PARAMS, &wr, sizeof(wr));
 	printf("gsl_ioctl CONFIGURE_WRITE_PARAMS: %d (%s)\n", rc,
 	       rc ? "FAILED" : "OK");
+
+	if (dev_nkv) {
+		memset(&sel, 0, sizeof(sel));
+		sel.graph_key_vector = full;
+		rc = gsl_ioctl(graph, GSL_CMD_ADD_GRAPH, &sel, sizeof(sel));
+		printf("gsl_ioctl ADD_GRAPH (device): %d (%s)\n", rc,
+		       rc ? "FAILED" : "OK");
+	}
 
 	set_media_format(graph, &gkv);
 
@@ -274,8 +309,18 @@ int main(int argc, char **argv)
 	if (rc)
 		return 1;
 
-	if (argc > 2)
-		rc = open_graph(argc - 2, argv + 2);
+	if (argc > 2) {
+		int n = argc - 2, split = n;
+		char **a = argv + 2;
+
+		/* "gslprobe db <stream kvs> + <device kvs>" */
+		for (int i = 0; i < n; i++)
+			if (!strcmp(a[i], "+"))
+				split = i;
+
+		rc = open_graph(split, a, split < n ? n - split - 1 : 0,
+				a + split + 1);
+	}
 
 	gsl_deinit();
 	printf("gsl_deinit done\n");
